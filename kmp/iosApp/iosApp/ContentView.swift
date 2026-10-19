@@ -1,28 +1,32 @@
 import SwiftUI
 import SharedLogic
 
+// Placeholder shell: native SwiftUI + NavigationStack (D-007b). Real screens arrive in Task 13.
+enum Route: Hashable {
+    case detail
+}
+
 struct ContentView: View {
-    @State private var showContent = false
+    @State private var path: [Route] = []
+
     var body: some View {
-        VStack {
-            Button("Click me!") {
-                withAnimation {
-                    showContent = !showContent
+        NavigationStack(path: $path) {
+            VStack(spacing: 16) {
+                Text("SwiftUI: \(Greeting().greet())")
+                Button("Open detail") {
+                    path.append(.detail)
                 }
             }
-
-            if showContent {
-                VStack(spacing: 16) {
-                    Image(systemName: "swift")
-                        .font(.system(size: 200))
-                        .foregroundColor(.accentColor)
-                    Text("SwiftUI: \(Greeting().greet())")
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .navigationTitle("Home")
+            .navigationDestination(for: Route.self) { route in
+                switch route {
+                case .detail:
+                    Text("Detail")
+                        .navigationTitle("Detail")
                 }
-                .transition(.move(edge: .top).combined(with: .opacity))
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .padding()
     }
 }
 
