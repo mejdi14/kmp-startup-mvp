@@ -227,6 +227,8 @@ failure mode §1.6 flags as "do not reproduce." Signing out returns to login.
 **Depends on:** Tasks 3, 4 — hard dependency, since running on a device with
 working login is the literal done criterion.
 
+**Status:** code written and compiled (`./gradlew :androidApp:assembleDebug`); gate→route mapping unit-tested (`:androidApp:testDebugUnitTest`). `reset`/`payments` are placeholder routes (tasks 9/11). **Pending (runtime/manual, not run):** install on a real device, cold launch → login, sign-in → home with no remount, token-refresh no-flicker check, sign-out → login. Task 5 is the vertical-slice gate; do not start task 6 until these pass.
+
 ---
 
 ## Task 6 — Theme and shared components (Android)
