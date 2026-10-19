@@ -14,6 +14,14 @@ class DeepLinkTest {
     }
 
     @Test
+    fun parsesOAuthCallback() {
+        assertEquals(DeepLink.OAuthCallback("g1"), DeepLinks.parse("com.devtodollars.app://login-callback?code=g1"))
+        assertEquals(DeepLink.OAuthCallback("g1"), DeepLinks.parse("${DeepLinks.OAUTH_REDIRECT_URL}/?code=g1"))
+        assertEquals(DeepLink.LinkError("denied"), DeepLinks.parse("com.devtodollars.app://login-callback#error_description=denied"))
+        assertNull(DeepLinks.parse("com.devtodollars.app://login-callback"))
+    }
+
+    @Test
     fun resetRedirectUrlRoundTrips() {
         assertEquals(DeepLink.PasswordReset("x"), DeepLinks.parse("${DeepLinks.RESET_REDIRECT_URL}?code=x"))
     }

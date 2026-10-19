@@ -13,5 +13,9 @@ interface AuthRepository {
     suspend fun updatePassword(password: String)
     /** Completes a PKCE flow from a deep link's auth code, establishing a session. */
     suspend fun exchangeCodeForSession(code: String)
+    /** Native SDK sign-in (D-008): exchanges a provider ID token for a session. */
+    suspend fun signInWithIdToken(provider: IdTokenProvider, idToken: String, nonce: String? = null)
+    /** Browser-redirect sign-in (D-008, GitHub): opens the provider page; the session returns via the D-003 deep link. */
+    suspend fun signInWithOAuth(provider: OAuthProvider, redirectUrl: String)
     suspend fun signOut()
 }

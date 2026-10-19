@@ -40,6 +40,15 @@ private class FakeAuthRepository : AuthRepository {
         calls += "exchange:$code"
     }
 
+    override suspend fun signInWithIdToken(provider: IdTokenProvider, idToken: String, nonce: String?) {
+        calls += "idToken:$provider:$idToken:$nonce"
+        status.value = AuthStatus.SignedIn(session("tok2"))
+    }
+
+    override suspend fun signInWithOAuth(provider: OAuthProvider, redirectUrl: String) {
+        calls += "oauth:$provider:$redirectUrl"
+    }
+
     override suspend fun signOut() {
         calls += "signOut"
         status.value = AuthStatus.SignedOut
@@ -135,6 +144,26 @@ class AuthStoreTest {
         assertFailsWith<IllegalStateException> {
             store.handleDeepLink("com.devtodollars.app://login-callback/reset#error=access_denied")
         }
+        assertEquals(false, store.pendingPasswordReset.value)
+    }
+
+    @Test
+    fun googleIdTokenSignInDrivesGate() = runTest {
+        val repo = FakeAuthRepository()
+        val store = AuthStore(repo, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+        repo.status.value = AuthStatus.SignedOut
+        store.signInWithIdToken(IdTokenProvider.Google, "tok", "n1")
+        assertEquals(listOf("idToken:Google:tok:n1"), repo.calls)
+        assertEquals(AuthGate.LoggedIn, store.authGate.value)
+    }
+
+    @Test
+    fun githubStartsBrowserFlowAndCallbackExchangesCodeWithoutResetFlag() = runTest {
+        val repo = FakeAuthRepository()
+        val store = AuthStore(repo, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+        store.signInWithGithub()
+        store.handleDeepLink("com.devtodollars.app://login-callback?code=g1")
+        assertEquals(listOf("oauth:Github:com.devtodollars.app://login-callback", "exchange:g1"), repo.calls)
         assertEquals(false, store.pendingPasswordReset.value)
     }
 }

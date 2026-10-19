@@ -1,6 +1,7 @@
 package com.mejdi14.kmpstartupmvp.data
 
 import com.mejdi14.kmpstartupmvp.config.SupabaseConfig
+import com.mejdi14.kmpstartupmvp.auth.DeepLinks
 import com.russhwolf.settings.Settings
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.Auth
@@ -22,6 +23,8 @@ fun createAppSupabaseClient(config: SupabaseConfig, settings: Settings): Supabas
             flowType = FlowType.PKCE
             alwaysAutoRefresh = true
             sessionManager = SettingsSessionManager(settings)
+            scheme = DeepLinks.SCHEME
+            host = DeepLinks.HOST
             codeVerifierCache = SettingsCodeVerifierCache(settings)
         }
         install(Postgrest)

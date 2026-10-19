@@ -21,6 +21,12 @@ sealed interface AuthStatus {
     data class SignedIn(val session: AuthSession) : AuthStatus
 }
 
+/** Providers signed in natively with an ID token (D-008). Apple is wired in task 13. */
+enum class IdTokenProvider { Google, Apple }
+
+/** Providers signed in through the browser redirect (D-008). */
+enum class OAuthProvider { Github }
+
 /** D-002: the only auth signal navigation should react to. */
 enum class AuthGate {
     Unknown,

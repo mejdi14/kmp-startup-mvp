@@ -5,7 +5,13 @@ import com.mejdi14.kmpstartupmvp.auth.AuthSession
 import com.mejdi14.kmpstartupmvp.auth.AuthStatus
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
+import com.mejdi14.kmpstartupmvp.auth.IdTokenProvider
+import com.mejdi14.kmpstartupmvp.auth.OAuthProvider
+import io.github.jan.supabase.auth.providers.Apple
+import io.github.jan.supabase.auth.providers.Github
+import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.auth.providers.builtin.IDToken
 import io.github.jan.supabase.auth.status.SessionStatus
 import com.mejdi14.kmpstartupmvp.metadata.MetadataRepository
 import com.mejdi14.kmpstartupmvp.metadata.SubscriptionWithPrice
@@ -65,6 +71,23 @@ class SupabaseRepository(val client: SupabaseClient) : AuthRepository, MetadataR
 
     override suspend fun exchangeCodeForSession(code: String) {
         client.auth.exchangeCodeForSession(code)
+    }
+
+    override suspend fun signInWithIdToken(provider: IdTokenProvider, idToken: String, nonce: String?) {
+        client.auth.signInWith(IDToken) {
+            this.idToken = idToken
+            this.provider = when (provider) {
+                IdTokenProvider.Google -> Google
+                IdTokenProvider.Apple -> Apple
+            }
+            this.nonce = nonce
+        }
+    }
+
+    override suspend fun signInWithOAuth(provider: OAuthProvider, redirectUrl: String) {
+        when (provider) {
+            OAuthProvider.Github -> client.auth.signInWith(Github, redirectUrl)
+        }
     }
 
     override suspend fun signOut() {

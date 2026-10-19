@@ -1,5 +1,6 @@
 package com.mejdi14.kmpstartupmvp
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -7,6 +8,8 @@ import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.mejdi14.kmpstartupmvp.auth.AuthStore
 import com.mejdi14.kmpstartupmvp.auth.DeepLinks
+import com.mejdi14.kmpstartupmvp.auth.GoogleSignIn
+import com.mejdi14.kmpstartupmvp.auth.IdTokenProvider
 import kotlinx.coroutines.launch
 
 /**
@@ -21,6 +24,15 @@ class AuthViewModel(private val store: AuthStore) : ViewModel() {
 
     fun signInWithPassword(email: String, password: String, onResult: (Result<Unit>) -> Unit = {}) =
         run(onResult) { store.signInWithPassword(email, password) }
+
+    /** Native Google sign-in (D-008): [activityContext] must be an Activity so the account picker can show. */
+    fun signInWithGoogle(activityContext: Context, onResult: (Result<Unit>) -> Unit = {}) = run(onResult) {
+        val google = GoogleSignIn.getIdToken(activityContext, googleWebClientId)
+        store.signInWithIdToken(IdTokenProvider.Google, google.idToken, google.rawNonce)
+    }
+
+    /** GitHub browser flow; success returns through the deep link, so [onResult] only covers launching. */
+    fun signInWithGithub(onResult: (Result<Unit>) -> Unit = {}) = run(onResult) { store.signInWithGithub() }
 
     fun signUp(email: String, password: String, onResult: (Result<Unit>) -> Unit = {}) =
         run(onResult) { store.signUp(email, password) }

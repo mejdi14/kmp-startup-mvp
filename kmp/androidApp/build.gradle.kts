@@ -20,6 +20,9 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.compose.ui)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.playServices)
+    implementation(libs.googleid)
     implementation(libs.compose.material3)
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
@@ -32,6 +35,10 @@ android {
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
+        // Google *web* OAuth client ID (the one registered in Supabase's Google provider), used as
+        // the Credential Manager server client ID. Supply via `-PGOOGLE_WEB_CLIENT_ID=...` or
+        // ~/.gradle/gradle.properties; empty disables Google sign-in with a clear error.
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${providers.gradleProperty("GOOGLE_WEB_CLIENT_ID").getOrElse("")}\"")
         applicationId = "com.mejdi14.kmpstartupmvp"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()

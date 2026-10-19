@@ -9,7 +9,7 @@ import kotlinx.coroutines.launch
 
 /**
  * Port of the Flutter `Auth` notifier (PORTING.md §1.2) minus PostHog (task 12),
- * the dead OAuth method (task 10) and `currentSession`. App-lifetime (keepAlive):
+ * and `currentSession`. App-lifetime (keepAlive):
  * construct once with an app-scoped [scope].
  */
 class AuthStore(
@@ -75,6 +75,7 @@ class AuthStore(
                 repository.exchangeCodeForSession(link.code)
                 _pendingPasswordReset.value = true
             }
+            is DeepLink.OAuthCallback -> repository.exchangeCodeForSession(link.code)
             is DeepLink.LinkError -> throw IllegalStateException(link.message)
             null -> Unit
         }
@@ -83,6 +84,14 @@ class AuthStore(
     fun dismissPasswordReset() {
         _pendingPasswordReset.value = false
     }
+
+    /** Native Google/Apple sign-in; [nonce] is the raw nonce whose hash was sent to the provider. */
+    suspend fun signInWithIdToken(provider: IdTokenProvider, idToken: String, nonce: String? = null) =
+        repository.signInWithIdToken(provider, idToken, nonce)
+
+    /** Starts the GitHub browser flow; completion arrives through [handleDeepLink]. */
+    suspend fun signInWithGithub() =
+        repository.signInWithOAuth(OAuthProvider.Github, DeepLinks.OAUTH_REDIRECT_URL)
 
     suspend fun signOut() = repository.signOut()
 }

@@ -6,6 +6,9 @@ object DeepLinks {
     const val HOST = "login-callback"
     const val BASE_URL = "$SCHEME://$HOST"
 
+    /** `redirect_to` for the GitHub browser sign-in (task 10); must be in the §2.8 allow-list. */
+    const val OAUTH_REDIRECT_URL = BASE_URL
+
     /** `redirect_to` for password-recovery emails; must be in the §2.8 allow-list. */
     const val RESET_REDIRECT_URL = "$BASE_URL/reset"
 
@@ -26,7 +29,14 @@ object DeepLinks {
         // GoTrue reports errors in the fragment, PKCE codes in the query; read both.
         val params = parseParams(query) + parseParams(fragment)
 
-        if (path.trimEnd('/') != "/reset") return null
+        val route = path.trimEnd('/')
+        if (route.isEmpty()) {
+            params["error_description"]?.let { return DeepLink.LinkError(it) }
+            params["error"]?.let { return DeepLink.LinkError(it) }
+            val code = params["code"]?.takeIf { it.isNotEmpty() } ?: return null
+            return DeepLink.OAuthCallback(code)
+        }
+        if (route != "/reset") return null
         params["error_description"]?.let { return DeepLink.LinkError(it) }
         params["error"]?.let { return DeepLink.LinkError(it) }
         val code = params["code"]?.takeIf { it.isNotEmpty() } ?: return DeepLink.LinkError("Missing reset code")
@@ -61,6 +71,9 @@ sealed interface DeepLink {
     /** Recovery link carrying a PKCE auth [code] to exchange for a session. */
     data class PasswordReset(val code: String) : DeepLink
 
-    /** Recovery link GoTrue rejected (e.g. expired). */
+    /** OAuth redirect (GitHub) carrying a PKCE auth [code] to exchange for a session. */
+    data class OAuthCallback(val code: String) : DeepLink
+
+    /** Link GoTrue rejected (e.g. expired). */
     data class LinkError(val message: String) : DeepLink
 }

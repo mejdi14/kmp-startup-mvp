@@ -23,8 +23,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.credentials.exceptions.GetCredentialCancellationException
 import com.mejdi14.kmpstartupmvp.AuthViewModel
 import com.mejdi14.kmpstartupmvp.ui.components.AppTextField
 import com.mejdi14.kmpstartupmvp.ui.components.ErrorText
@@ -32,10 +34,8 @@ import com.mejdi14.kmpstartupmvp.ui.components.OutlineTextButton
 import com.mejdi14.kmpstartupmvp.ui.components.PrimaryButton
 
 /**
- * Port of Flutter's `AuthScreen` + `EmailForm` (§1.1). Email/password only; SSO
- * buttons (task 10) are not here yet. The Flutter
- * "or continue with email" reveal only existed to sit under the SSO buttons, so
- * the form is shown directly. Navigation on success is the auth gate's job (task 5).
+ * Port of Flutter's `AuthScreen` + `EmailForm` (§1.1). Google (native) and GitHub (browser)
+ * buttons per D-008 above the email form, which is shown directly rather than behind the Flutter reveal. Navigation on success is the auth gate's job (task 5).
  */
 @Composable
 fun AuthScreen(viewModel: AuthViewModel, modifier: Modifier = Modifier) {
@@ -48,8 +48,34 @@ fun AuthScreen(viewModel: AuthViewModel, modifier: Modifier = Modifier) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.Center,
         ) {
+            SocialButtons(viewModel)
+            Spacer(Modifier.height(24.dp))
             EmailForm(viewModel)
         }
+    }
+}
+
+@Composable
+private fun SocialButtons(viewModel: AuthViewModel) {
+    val context = LocalContext.current
+    var errorMessage by rememberSaveable { mutableStateOf("") }
+    val onResult: (Result<Unit>) -> Unit = { result ->
+        // Success is the auth gate's job; a dismissed Google picker is not worth an error banner.
+        result.onFailure {
+            errorMessage = if (it is GetCredentialCancellationException) "" else it.message ?: "Something went wrong"
+        }
+    }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        PrimaryButton(text = "Continue with Google", onClick = {
+            errorMessage = ""
+            viewModel.signInWithGoogle(context, onResult)
+        })
+        PrimaryButton(text = "Continue with GitHub", onClick = {
+            errorMessage = ""
+            viewModel.signInWithGithub(onResult)
+        })
+        if (errorMessage.isNotEmpty()) ErrorText(errorMessage)
+        Text("or continue with email", style = MaterialTheme.typography.bodyMedium)
     }
 }
 
