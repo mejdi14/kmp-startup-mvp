@@ -39,7 +39,16 @@ android {
         }
     }
     buildTypes {
+        debug {
+            // Local Supabase (flutter/env.local.json equivalent).
+            buildConfigField("String", "SUPABASE_ENV", "\"LOCAL\"")
+        }
         release {
+            buildConfigField("String", "SUPABASE_ENV", "\"HOSTED\"")
+            // TODO(release-signing): no release keystore is available yet, so
+            // this build is left UNSIGNED on purpose. It must not fall back to
+            // the debug key (the Flutter template did, PORTING.md §1.9 #8).
+            // Add a signingConfig fed by keystore properties before shipping.
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -53,5 +62,6 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
