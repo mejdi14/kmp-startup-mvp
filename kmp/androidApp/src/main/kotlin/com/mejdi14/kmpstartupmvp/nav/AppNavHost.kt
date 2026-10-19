@@ -99,7 +99,11 @@ fun AppNavHost(
             )
         }
         composable(Routes.ACCOUNT) {
-            AccountScreen(metadataViewModel = metadataViewModel, onBack = { navController.popBackStack() })
+            AccountScreen(
+                authViewModel = authViewModel,
+                metadataViewModel = metadataViewModel,
+                onBack = { navController.popBackStack() },
+            )
         }
         // Dialog destination: Flutter's /reset was a DialogPage over the current screen.
         dialog(Routes.RESET) {

@@ -1115,3 +1115,60 @@ the auth screen and carries a line of explanatory copy.
 `auth.users` volume) — then drop guest access rather than reimplement it
 session-lessly, because the degraded-screen work above is the real cost and it
 does not get cheaper later.
+
+## D-010 — Guest conversion: `updateUser` on the anonymous user, no merge path
+
+**Chosen:** convert a guest in place. `AuthStore.saveGuestAccount` calls
+`auth.updateUser { email; password }` on the *current* anonymous user, which
+keeps the same user id — so its `public.users` row, its subscription and its
+Stripe customer need no migration, and nothing downstream can tell that the
+account used to be a guest. `AuthSession` carries the SDK's `isAnonymous` flag
+and `AuthStore.isGuest` derives from it, so both platforms decide what to offer
+off the session stream they already collect. The conversion returns
+`AccountConversion.Complete` or `ConfirmationRequired(email)`: with email
+confirmation on (§2.8) GoTrue holds the address as `new_email` and the session
+stays anonymous until the link is followed, which arrives through the existing
+D-003 callback (`com.devtodollars.app://login-callback?code=…`, already
+classified as `DeepLink.OAuthCallback`) and needs no new deep-link route.
+
+A session exists before and after, so `AuthGate` never leaves `LoggedIn` and
+nothing navigates — D-002 holds, and a commonTest asserts the gate emits
+`LoggedIn` once across a conversion rather than flickering.
+
+**Rejected:** treating an already-registered email as something to recover
+from, by signing the guest into that account or merging the two. Supabase
+rejects the `updateUser` with `email_exists` and offers no merge; doing it
+ourselves would mean a server-side job that re-points the guest's rows at
+another user id and reconciles two Stripe customers — an edge function and a
+reconciliation policy for a case that only ever arises when someone already
+has an account. So `EmailAlreadyRegisteredException` says the honest thing
+instead: that address has an account, this session cannot be moved into it,
+sign in to that one and this stays behind — or save this session under a
+different email.
+
+**Rejected:** a "guest" state on `AuthGate`, or a guest branch through
+navigation. Already rejected in D-009 and nothing here changes it: `isGuest`
+is screen content, not a navigation signal, and it is deliberately a separate
+`StateFlow`.
+
+**Why:** in-place conversion is the one option where "browse first, sign up
+later" costs nothing downstream — no data migration, no second user id, no
+Stripe reconciliation — which is the opening D-009 left and the reason the
+anonymous session was chosen over a session-less guest mode. The sharp edge
+D-009 accepted was that a guest who signs out is unrecoverable; that is now
+guarded at both ends: Account offers "Save your account" while the session is
+anonymous, and Logout asks first, naming what is lost and offering the
+conversion instead of the sign-out.
+
+**Costs accepted:** the confirmation round-trip means a guest can be left
+mid-conversion — password set, address pending — and still unrecoverable, so
+the guest section stays on screen (and keeps warning) until `isAnonymous`
+actually clears. `email_exists` is the one rejection with a bespoke message;
+every other GoTrue error surfaces as its own text. And the hosted project's
+`redirect_to` allow-list (§2.8) must contain the bare callback URL, or the
+confirmation link cannot return.
+
+**Reverses if:** merging a guest into an existing account becomes a real
+requirement (support asking for it repeatedly) — then it needs a server-side
+merge with Stripe reconciliation, not a client-side retry, and this decision
+becomes its client half rather than being replaced.

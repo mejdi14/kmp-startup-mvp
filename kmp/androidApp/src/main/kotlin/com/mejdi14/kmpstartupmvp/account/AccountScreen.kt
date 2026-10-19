@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -26,8 +27,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.mejdi14.kmpstartupmvp.AuthViewModel
 import com.mejdi14.kmpstartupmvp.MetadataViewModel
+import com.mejdi14.kmpstartupmvp.auth.AccountConversion
 import com.mejdi14.kmpstartupmvp.auth.AsyncValue
+import com.mejdi14.kmpstartupmvp.auth.SaveAccountDialog
 import com.mejdi14.kmpstartupmvp.metadata.ProfileValidation
 import com.mejdi14.kmpstartupmvp.ui.components.AppTextField
 import com.mejdi14.kmpstartupmvp.ui.components.ErrorState
@@ -35,15 +39,30 @@ import com.mejdi14.kmpstartupmvp.ui.components.ErrorText
 import com.mejdi14.kmpstartupmvp.ui.components.LoadingIndicator
 import com.mejdi14.kmpstartupmvp.ui.components.PrimaryButton
 
+/** Why a guest should convert (D-010); the sign-out warning in `HomeScreen` says the other half. */
+internal const val GUEST_ACCOUNT_MESSAGE =
+    "You're signed in as a guest, so this account only exists on this device and can't be " +
+        "recovered. Add an email and password to keep it — nothing you've done is lost."
+
 /** Shown for delete-account: the fixed backend has no self-service deletion path (PORTING.md §2.1/§2.3/§2.4). */
 internal const val DELETE_BLOCKED_MESSAGE =
     "Account deletion isn't available in the app yet. Please contact support to delete your account."
 
-/** Profile editing (`full_name`/`avatar_url`) plus the delete-account entry point (task 9). */
+/**
+ * Profile editing (`full_name`/`avatar_url`) plus the delete-account entry point (task 9), and for a
+ * guest session the "Save your account" conversion (D-010). The guest banner sits above the profile
+ * state, not inside it: converting is what a guest came here for and must not depend on the
+ * `users` row having loaded.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AccountScreen(metadataViewModel: MetadataViewModel, onBack: () -> Unit) {
+fun AccountScreen(
+    authViewModel: AuthViewModel,
+    metadataViewModel: MetadataViewModel,
+    onBack: () -> Unit,
+) {
     val state by metadataViewModel.state.collectAsStateWithLifecycle()
+    val isGuest by authViewModel.isGuest.collectAsStateWithLifecycle()
     Scaffold(
         topBar = {
             TopAppBar(
@@ -52,24 +71,75 @@ fun AccountScreen(metadataViewModel: MetadataViewModel, onBack: () -> Unit) {
             )
         },
     ) { padding ->
-        val modifier = Modifier.padding(padding).fillMaxSize()
-        when (val s = state) {
-            AsyncValue.Loading -> LoadingIndicator(modifier)
-            is AsyncValue.Error -> ErrorState("Failed to load profile", modifier, onRetry = metadataViewModel::refresh)
-            is AsyncValue.Data -> {
-                val user = s.value
-                if (user == null) {
+        Column(Modifier.padding(padding).fillMaxSize()) {
+            if (isGuest) SaveAccountSection(authViewModel)
+            val modifier = Modifier.weight(1f).fillMaxWidth()
+            when (val s = state) {
+                AsyncValue.Loading -> LoadingIndicator(modifier)
+                is AsyncValue.Error ->
                     ErrorState("Failed to load profile", modifier, onRetry = metadataViewModel::refresh)
-                } else {
-                    ProfileForm(
-                        initialName = user.fullName.orEmpty(),
-                        initialAvatar = user.avatarUrl.orEmpty(),
-                        onSave = metadataViewModel::updateProfile,
-                        modifier = modifier,
-                    )
+                is AsyncValue.Data -> {
+                    val user = s.value
+                    if (user == null) {
+                        ErrorState("Failed to load profile", modifier, onRetry = metadataViewModel::refresh)
+                    } else {
+                        ProfileForm(
+                            initialName = user.fullName.orEmpty(),
+                            initialAvatar = user.avatarUrl.orEmpty(),
+                            onSave = metadataViewModel::updateProfile,
+                            modifier = modifier,
+                        )
+                    }
                 }
             }
         }
+    }
+}
+
+/**
+ * Guest-only conversion entry point (D-010). It stays on screen while a confirmation is pending,
+ * because until the link is followed the address is not yet the user's and the account is still
+ * unrecoverable.
+ */
+@Composable
+private fun SaveAccountSection(authViewModel: AuthViewModel) {
+    var showForm by rememberSaveable { mutableStateOf(false) }
+    var pendingEmail by rememberSaveable { mutableStateOf<String?>(null) }
+
+    Column(
+        Modifier.fillMaxWidth().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("Save your account", style = MaterialTheme.typography.titleMedium)
+        Text(GUEST_ACCOUNT_MESSAGE, style = MaterialTheme.typography.bodyMedium)
+        PrimaryButton(text = "Save your account", onClick = { showForm = true })
+        HorizontalDivider(Modifier.padding(top = 8.dp))
+    }
+
+    if (showForm) {
+        SaveAccountDialog(
+            onSave = authViewModel::saveGuestAccount,
+            onSaved = { conversion ->
+                showForm = false
+                // Complete: `isGuest` has already gone false and this whole section disappears.
+                pendingEmail = (conversion as? AccountConversion.ConfirmationRequired)?.email
+            },
+            onDismiss = { showForm = false },
+        )
+    }
+
+    pendingEmail?.let { email ->
+        AlertDialog(
+            onDismissRequest = { pendingEmail = null },
+            title = { Text("Confirm your email") },
+            text = {
+                Text(
+                    "Your password is set. Open the link we sent to $email to finish — until then this " +
+                        "is still a guest session, so don't sign out.",
+                )
+            },
+            confirmButton = { TextButton(onClick = { pendingEmail = null }) { Text("Ok") } },
+        )
     }
 }
 

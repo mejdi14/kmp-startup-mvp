@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.mejdi14.kmpstartupmvp.auth.AccountConversion
 import com.mejdi14.kmpstartupmvp.auth.AuthStore
 import com.mejdi14.kmpstartupmvp.auth.DeepLinks
 import com.mejdi14.kmpstartupmvp.auth.GoogleSignIn
@@ -21,6 +22,7 @@ class AuthViewModel(private val store: AuthStore) : ViewModel() {
     val state = store.state
     val authGate = store.authGate
     val pendingPasswordReset = store.pendingPasswordReset
+    val isGuest = store.isGuest
 
     fun signInWithPassword(email: String, password: String, onResult: (Result<Unit>) -> Unit = {}) =
         run(onResult) { store.signInWithPassword(email, password) }
@@ -39,6 +41,18 @@ class AuthViewModel(private val store: AuthStore) : ViewModel() {
 
     /** "Continue without login" (D-009): anonymous session, so the auth gate navigates as usual. */
     fun continueAsGuest(onResult: (Result<Unit>) -> Unit = {}) = run(onResult) { store.continueAsGuest() }
+
+    /**
+     * "Save your account" (D-010): converts the current guest in place. [onResult] carries the
+     * [AccountConversion] so the screen can tell "you're done" from "confirm your email".
+     */
+    fun saveGuestAccount(
+        email: String,
+        password: String,
+        onResult: (Result<AccountConversion>) -> Unit = {},
+    ) {
+        viewModelScope.launch { onResult(runCatching { store.saveGuestAccount(email, password) }) }
+    }
 
     fun recoverPassword(email: String, onResult: (Result<Unit>) -> Unit = {}) =
         run(onResult) { store.recoverPassword(email, DeepLinks.RESET_REDIRECT_URL) }

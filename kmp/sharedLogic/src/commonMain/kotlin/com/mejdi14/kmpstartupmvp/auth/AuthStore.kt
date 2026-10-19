@@ -29,6 +29,15 @@ class AuthStore(
      */
     val authGate: StateFlow<AuthGate> = _gate.asStateFlow()
 
+    private val _isGuest = MutableStateFlow(false)
+
+    /**
+     * True while the signed-in session is anonymous (D-009/D-010). Deliberately *not* a gate state:
+     * D-002 keeps navigation on one signal, and this only decides what a screen offers. A
+     * [StateFlow] again, so token refreshes do not re-emit it.
+     */
+    val isGuest: StateFlow<Boolean> = _isGuest.asStateFlow()
+
     private val _pendingPasswordReset = MutableStateFlow(false)
 
     /** True after a recovery link signed the user in, until the new-password dialog is dismissed. */
@@ -40,6 +49,7 @@ class AuthStore(
                 .catch {
                     _state.value = AsyncValue.Error(it)
                     _gate.value = AuthGate.from(_state.value)
+                    _isGuest.value = false
                 }
                 .collect { status ->
                     when (status) {
@@ -49,6 +59,7 @@ class AuthStore(
                         is AuthStatus.SignedIn -> _state.value = AsyncValue.Data(status.session)
                     }
                     _gate.value = AuthGate.from(_state.value)
+                    _isGuest.value = (status as? AuthStatus.SignedIn)?.session?.isAnonymous == true
                 }
         }
     }
@@ -113,6 +124,25 @@ class AuthStore(
      */
     @Throws(Throwable::class)
     suspend fun continueAsGuest() = repository.signInAnonymously()
+
+    /**
+     * "Save your account" (D-010): sets an email and password on the *current* anonymous user, so the
+     * user id, its `users` row, its subscription and its Stripe customer all stay as they are. The
+     * session exists before and after, so [authGate] never leaves [AuthGate.LoggedIn] and nothing
+     * navigates (D-002).
+     *
+     * With email confirmation on (§2.8) this returns [AccountConversion.ConfirmationRequired] and
+     * [isGuest] stays true until the confirmation link arrives through [handleDeepLink]. Throws
+     * [EmailAlreadyRegisteredException] when the address is taken — the guest session cannot be
+     * merged into that account.
+     */
+    @Throws(Throwable::class)
+    suspend fun saveGuestAccount(email: String, password: String): AccountConversion {
+        // Guard, not a UI concern: on a non-anonymous user the same call would quietly change a real
+        // account's email and password.
+        check(_isGuest.value) { "Not a guest session: there is nothing to convert" }
+        return repository.convertAnonymousUser(email, password, DeepLinks.EMAIL_CONFIRM_REDIRECT_URL)
+    }
 
     @Throws(Throwable::class)
     suspend fun signOut() = repository.signOut()

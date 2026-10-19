@@ -4,6 +4,12 @@ import SwiftUI
 // pricing page). Replace with the real pricing URL.
 let pricingURL = URL(string: "https://github.com/devtodollars/mvp-boilerplate/blob/main/flutter/README.md")!
 
+/// Sign-out warning for a guest (D-010). A guest has no credentials, so signing out destroys the
+/// account rather than parking it; saying so is the point, and "Save your account" is the way out.
+let guestSignOutWarning =
+    "You're signed in as a guest. Signing out deletes this session for good — the account can't be "
+        + "recovered and everything in it goes with it. Save your account first to keep it."
+
 /// Port of Flutter's `HomeScreen` (§1.1): the subscription status sentence plus Payments / Account / Logout.
 struct HomeScreen: View {
     @EnvironmentObject private var env: AppEnvironment
@@ -11,6 +17,7 @@ struct HomeScreen: View {
     @ObservedObject var metadata: MetadataModel
     let onOpenPayments: () -> Void
     let onOpenAccount: () -> Void
+    @State private var confirmGuestSignOut = false
 
     var body: some View {
         VStack(spacing: 8) {
@@ -30,12 +37,22 @@ struct HomeScreen: View {
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button("Logout") { Task { try? await auth.signOut() } }
+                // A guest sign-out is irreversible, so it asks first (D-010).
+                Button("Logout") {
+                    if auth.isGuest { confirmGuestSignOut = true } else { Task { try? await auth.signOut() } }
+                }
             }
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button("Payments", action: onOpenPayments)
                 Button("Account", action: onOpenAccount)
             }
+        }
+        .confirmationDialog("Lose this account?", isPresented: $confirmGuestSignOut, titleVisibility: .visible) {
+            Button("Save your account") { onOpenAccount() }
+            Button("Sign out anyway", role: .destructive) { Task { try? await auth.signOut() } }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text(guestSignOutWarning)
         }
         .trackScreen(.home, in: env)
     }
