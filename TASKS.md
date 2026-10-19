@@ -294,6 +294,8 @@ or re-reading tasks 1–6.
 
 **Depends on:** Tasks 1–6 (it documents conventions that must already exist).
 
+**Status:** `.claude/agents/screen-porter.md` written (frontmatter + Android and iOS conventions, grounded in the actual task 1–6 code). Doc-only task; nothing to compile or run. **Pending:** a real invocation on a screen (task 8) to confirm it is concrete enough; iOS theming/components and the `StateFlow`→Swift bridge are marked "to be confirmed in task 13."
+
 ---
 
 ## Task 8 — Home screen (Android)
