@@ -11,5 +11,7 @@ interface AuthRepository {
     suspend fun signUp(email: String, password: String)
     suspend fun recoverPassword(email: String, redirectUrl: String? = null)
     suspend fun updatePassword(password: String)
+    /** Completes a PKCE flow from a deep link's auth code, establishing a session. */
+    suspend fun exchangeCodeForSession(code: String)
     suspend fun signOut()
 }

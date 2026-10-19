@@ -28,11 +28,12 @@ import androidx.compose.ui.unit.dp
 import com.mejdi14.kmpstartupmvp.AuthViewModel
 import com.mejdi14.kmpstartupmvp.ui.components.AppTextField
 import com.mejdi14.kmpstartupmvp.ui.components.ErrorText
+import com.mejdi14.kmpstartupmvp.ui.components.OutlineTextButton
 import com.mejdi14.kmpstartupmvp.ui.components.PrimaryButton
 
 /**
  * Port of Flutter's `AuthScreen` + `EmailForm` (§1.1). Email/password only; SSO
- * buttons (task 10) and forgot-password (task 9) are not here yet. The Flutter
+ * buttons (task 10) are not here yet. The Flutter
  * "or continue with email" reveal only existed to sit under the SSO buttons, so
  * the form is shown directly. Navigation on success is the auth gate's job (task 5).
  */
@@ -64,6 +65,7 @@ private fun EmailForm(viewModel: AuthViewModel) {
     // Field errors only appear after a submit attempt, like Flutter's Form.validate().
     var submitted by rememberSaveable { mutableStateOf(false) }
     var showCheckEmail by rememberSaveable { mutableStateOf(false) }
+    var showRecover by rememberSaveable { mutableStateOf(false) }
 
     val isSignUp = action == AuthAction.SignUp
     val emailError = EmailFormValidation.email(email).takeIf { submitted }
@@ -143,11 +145,21 @@ private fun EmailForm(viewModel: AuthViewModel) {
             }) {
                 Text(if (isSignUp) "Have an account?" else "Don't have an account?")
             }
+            // Flutter shows this beside the toggle in sign-in mode only.
+            if (!isSignUp) OutlineTextButton("Forgot Password", onClick = { showRecover = true })
         }
         PrimaryButton(
             text = if (isSignUp) "Create Account" else "Login",
             onClick = ::submit,
             enabled = !loading,
+        )
+    }
+
+    if (showRecover) {
+        RecoverPasswordDialog(
+            initialEmail = email,
+            onSend = viewModel::recoverPassword,
+            onDismiss = { showRecover = false },
         )
     }
 

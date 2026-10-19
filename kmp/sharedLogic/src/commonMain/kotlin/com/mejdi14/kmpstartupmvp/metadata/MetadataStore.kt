@@ -66,6 +66,15 @@ class MetadataStore(
         refreshTicks.value++
     }
 
+    /**
+     * Saves the profile then refetches so [state] reflects what the server stored.
+     * Blank values are stored as null; input is checked by [ProfileValidation] first.
+     */
+    suspend fun updateProfile(fullName: String, avatarUrl: String) {
+        repository.updateProfile(fullName.trim().ifEmpty { null }, avatarUrl.trim().ifEmpty { null })
+        refresh()
+    }
+
     /** Fetches profile and subscription concurrently, as `(getUserDetails(), getSubscription()).wait`. */
     private suspend fun load(): UserMetadata = coroutineScope {
         val details = async { repository.fetchUserDetails() }

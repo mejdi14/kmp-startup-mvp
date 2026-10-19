@@ -8,6 +8,7 @@ object Routes {
     const val LOGIN = "login"
     const val HOME = "home"
     const val RESET = "reset"
+    const val ACCOUNT = "account"
     const val PAYMENTS = "payments"
 
     /** Where the D-002 auth gate sends the user. */

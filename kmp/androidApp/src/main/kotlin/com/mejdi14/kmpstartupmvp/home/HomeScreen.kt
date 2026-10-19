@@ -54,6 +54,7 @@ fun HomeScreen(
     authViewModel: AuthViewModel,
     metadataViewModel: MetadataViewModel,
     onOpenPayments: () -> Unit,
+    onOpenAccount: () -> Unit,
 ) {
     val state by metadataViewModel.state.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
@@ -66,6 +67,7 @@ fun HomeScreen(
                 ),
                 actions = {
                     TextButton(onClick = onOpenPayments) { Text("Payments") }
+                    TextButton(onClick = onOpenAccount) { Text("Account") }
                     TextButton(onClick = { authViewModel.signOut() }) { Text("Logout") }
                 },
             )

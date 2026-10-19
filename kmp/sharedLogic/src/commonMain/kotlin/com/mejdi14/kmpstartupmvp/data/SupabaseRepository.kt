@@ -63,12 +63,25 @@ class SupabaseRepository(val client: SupabaseClient) : AuthRepository, MetadataR
         client.auth.updateUser { this.password = password }
     }
 
+    override suspend fun exchangeCodeForSession(code: String) {
+        client.auth.exchangeCodeForSession(code)
+    }
+
     override suspend fun signOut() {
         client.auth.signOut()
     }
 
     override suspend fun fetchUserDetails(): UserMetadata? =
         client.from("users").select().decodeSingleOrNull<UserMetadata>()
+
+    override suspend fun updateProfile(fullName: String?, avatarUrl: String?) {
+        val userId = client.auth.currentUserOrNull()?.id ?: error("Not signed in")
+        // RLS already limits this to the caller's own row (§2.1); the filter keeps the request explicit.
+        client.from("users").update({
+            set("full_name", fullName)
+            set("avatar_url", avatarUrl)
+        }) { filter { eq("id", userId) } }
+    }
 
     override suspend fun fetchSubscription(): SubscriptionWithPrice? =
         client.from("subscriptions").select(Columns.raw("*, prices(*, products(*))")) {

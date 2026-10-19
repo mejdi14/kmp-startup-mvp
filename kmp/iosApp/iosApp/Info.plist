@@ -4,5 +4,17 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<!-- D-003 custom scheme (task 9). Config-only until task 13 runs the app on iOS; keep in sync with DeepLinks. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.devtodollars.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.devtodollars.app</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

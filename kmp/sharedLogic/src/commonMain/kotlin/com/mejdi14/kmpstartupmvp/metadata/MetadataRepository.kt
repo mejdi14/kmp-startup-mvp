@@ -7,4 +7,7 @@ interface MetadataRepository {
 
     /** Newest trialing/active subscription with its price and product, or null. */
     suspend fun fetchSubscription(): SubscriptionWithPrice?
+
+    /** Updates `full_name`/`avatar_url` on the caller's own `users` row (§2.1 own-row UPDATE policy). */
+    suspend fun updateProfile(fullName: String?, avatarUrl: String?)
 }

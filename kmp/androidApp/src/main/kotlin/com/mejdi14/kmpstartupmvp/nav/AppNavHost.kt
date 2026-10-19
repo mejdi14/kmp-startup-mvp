@@ -11,11 +11,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
 import com.mejdi14.kmpstartupmvp.AuthViewModel
+import com.mejdi14.kmpstartupmvp.auth.AuthGate
 import com.mejdi14.kmpstartupmvp.MetadataViewModel
 import com.mejdi14.kmpstartupmvp.home.HomeScreen
+import com.mejdi14.kmpstartupmvp.account.AccountScreen
 import com.mejdi14.kmpstartupmvp.auth.AuthScreen
+import com.mejdi14.kmpstartupmvp.auth.ResetPasswordDialog
 import com.mejdi14.kmpstartupmvp.ui.components.LoadingIndicator
 
 /**
@@ -27,17 +31,33 @@ import com.mejdi14.kmpstartupmvp.ui.components.LoadingIndicator
 fun AppNavHost(authViewModel: AuthViewModel, metadataViewModel: MetadataViewModel, modifier: Modifier = Modifier) {
     val navController = rememberNavController()
     val gate by authViewModel.authGate.collectAsState()
+    val pendingReset by authViewModel.pendingPasswordReset.collectAsState()
 
     // Fires on gate transitions only (and once on first composition, a no-op
     // when the gate already matches the start destination, e.g. after rotation).
     LaunchedEffect(gate) {
         val target = Routes.forGate(gate)
-        if (navController.currentDestination?.route != target) {
+        val current = navController.currentDestination?.route
+        // A recovery link signs the user in; keep the reset dialog above Home rather than popping it.
+        if (current != target && !(current == Routes.RESET && gate == AuthGate.LoggedIn)) {
             navController.navigate(target) {
                 // Clear everything: login/home must not be reachable by Back across the gate.
                 popUpTo(navController.graph.id) { inclusive = true }
                 launchSingleTop = true
             }
+        }
+    }
+
+    // Password-reset deep link (task 9): once signed in by the recovery code, show the dialog over Home.
+    LaunchedEffect(gate, pendingReset) {
+        if (gate == AuthGate.LoggedIn && pendingReset && navController.currentDestination?.route != Routes.RESET) {
+            if (navController.currentDestination?.route != Routes.HOME) {
+                navController.navigate(Routes.HOME) {
+                    popUpTo(navController.graph.id) { inclusive = true }
+                    launchSingleTop = true
+                }
+            }
+            navController.navigate(Routes.RESET) { launchSingleTop = true }
         }
     }
 
@@ -49,10 +69,23 @@ fun AppNavHost(authViewModel: AuthViewModel, metadataViewModel: MetadataViewMode
                 authViewModel = authViewModel,
                 metadataViewModel = metadataViewModel,
                 onOpenPayments = { navController.navigate(Routes.PAYMENTS) },
+                onOpenAccount = { navController.navigate(Routes.ACCOUNT) },
             )
         }
-        // Task 9 (password-reset dialog) and task 11 (payments, ?price=) fill these in; deep links come with task 9.
-        composable(Routes.RESET) { PlaceholderScreen("Reset password") }
+        composable(Routes.ACCOUNT) {
+            AccountScreen(metadataViewModel = metadataViewModel, onBack = { navController.popBackStack() })
+        }
+        // Dialog destination: Flutter's /reset was a DialogPage over the current screen.
+        dialog(Routes.RESET) {
+            ResetPasswordDialog(
+                onSubmit = authViewModel::updatePassword,
+                onDismiss = {
+                    authViewModel.dismissPasswordReset()
+                    navController.popBackStack()
+                },
+            )
+        }
+        // Task 11 (payments, ?price=) fills this in.
         composable(Routes.PAYMENTS) { PlaceholderScreen("Payments") }
     }
 }

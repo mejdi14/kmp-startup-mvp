@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.mejdi14.kmpstartupmvp.auth.AuthStore
+import com.mejdi14.kmpstartupmvp.auth.DeepLinks
 import kotlinx.coroutines.launch
 
 /**
@@ -16,6 +17,7 @@ import kotlinx.coroutines.launch
 class AuthViewModel(private val store: AuthStore) : ViewModel() {
     val state = store.state
     val authGate = store.authGate
+    val pendingPasswordReset = store.pendingPasswordReset
 
     fun signInWithPassword(email: String, password: String, onResult: (Result<Unit>) -> Unit = {}) =
         run(onResult) { store.signInWithPassword(email, password) }
@@ -24,10 +26,16 @@ class AuthViewModel(private val store: AuthStore) : ViewModel() {
         run(onResult) { store.signUp(email, password) }
 
     fun recoverPassword(email: String, onResult: (Result<Unit>) -> Unit = {}) =
-        run(onResult) { store.recoverPassword(email) }
+        run(onResult) { store.recoverPassword(email, DeepLinks.RESET_REDIRECT_URL) }
 
     fun updatePassword(password: String, onResult: (Result<Unit>) -> Unit = {}) =
         run(onResult) { store.updatePassword(password) }
+
+    fun dismissPasswordReset() = store.dismissPasswordReset()
+
+    /** Feeds an incoming D-003 deep link to the store; failures (e.g. expired link) go to [onResult]. */
+    fun handleDeepLink(url: String, onResult: (Result<Unit>) -> Unit = {}) =
+        run(onResult) { store.handleDeepLink(url) }
 
     fun signOut(onResult: (Result<Unit>) -> Unit = {}) = run(onResult) { store.signOut() }
 

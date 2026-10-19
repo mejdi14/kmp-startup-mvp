@@ -29,6 +29,11 @@ class AuthStore(
      */
     val authGate: StateFlow<AuthGate> = _gate.asStateFlow()
 
+    private val _pendingPasswordReset = MutableStateFlow(false)
+
+    /** True after a recovery link signed the user in, until the new-password dialog is dismissed. */
+    val pendingPasswordReset: StateFlow<Boolean> = _pendingPasswordReset.asStateFlow()
+
     init {
         scope.launch {
             repository.authStatus
@@ -58,6 +63,26 @@ class AuthStore(
         repository.recoverPassword(email, redirectUrl)
 
     suspend fun updatePassword(password: String) = repository.updatePassword(password)
+
+    /**
+     * Handles an incoming D-003 deep link. A valid recovery link exchanges its code for a
+     * session and raises [pendingPasswordReset]; a rejected link throws for the caller to surface.
+     * Links that are not ours are ignored.
+     */
+    suspend fun handleDeepLink(url: String) {
+        when (val link = DeepLinks.parse(url)) {
+            is DeepLink.PasswordReset -> {
+                repository.exchangeCodeForSession(link.code)
+                _pendingPasswordReset.value = true
+            }
+            is DeepLink.LinkError -> throw IllegalStateException(link.message)
+            null -> Unit
+        }
+    }
+
+    fun dismissPasswordReset() {
+        _pendingPasswordReset.value = false
+    }
 
     suspend fun signOut() = repository.signOut()
 }

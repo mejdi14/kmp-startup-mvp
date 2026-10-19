@@ -24,6 +24,13 @@ private class FakeMetadataRepository : MetadataRepository {
     }
 
     override suspend fun fetchSubscription() = subscription
+
+    var saved: Pair<String?, String?>? = null
+
+    override suspend fun updateProfile(fullName: String?, avatarUrl: String?) {
+        saved = fullName to avatarUrl
+        user = user?.copy(fullName = fullName, avatarUrl = avatarUrl)
+    }
 }
 
 private fun session(token: String, user: String = "u1") = AuthSession(user, "a@b.co", token)
@@ -112,5 +119,16 @@ class MetadataStoreTest {
         assertEquals(2, repo.fetches)
         val data = assertIs<AsyncValue.Data<UserMetadata?>>(store.state.value)
         assertEquals("Pro", data.value?.subscription?.prices?.products?.name)
+    }
+
+    @Test
+    fun updateProfileSavesTrimmedValuesThenRefetches() = runTest {
+        val store = store()
+        auth.value = AsyncValue.Data(session("t1"))
+        store.updateProfile("  Ada  ", "  ")
+        assertEquals("Ada" to null, repo.saved)
+        assertEquals(2, repo.fetches)
+        val data = assertIs<AsyncValue.Data<UserMetadata?>>(store.state.value)
+        assertEquals("Ada", data.value?.fullName)
     }
 }

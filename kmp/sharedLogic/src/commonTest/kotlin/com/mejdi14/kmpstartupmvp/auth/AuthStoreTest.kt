@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 
 private class FakeAuthRepository : AuthRepository {
@@ -33,6 +34,10 @@ private class FakeAuthRepository : AuthRepository {
 
     override suspend fun updatePassword(password: String) {
         calls += "updatePassword"
+    }
+
+    override suspend fun exchangeCodeForSession(code: String) {
+        calls += "exchange:$code"
     }
 
     override suspend fun signOut() {
@@ -108,5 +113,28 @@ class AuthStoreTest {
         val store = AuthStore(failing, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
         assertIs<AsyncValue.Error>(store.state.value)
         assertEquals(AuthGate.LoggedOut, store.authGate.value)
+    }
+
+    @Test
+    fun resetLinkExchangesCodeAndRaisesPendingFlag() = runTest {
+        val repo = FakeAuthRepository()
+        val store = AuthStore(repo, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+        store.handleDeepLink("com.devtodollars.app://login-callback/reset?code=c1")
+        assertEquals(listOf("exchange:c1"), repo.calls)
+        assertEquals(true, store.pendingPasswordReset.value)
+        store.dismissPasswordReset()
+        assertEquals(false, store.pendingPasswordReset.value)
+    }
+
+    @Test
+    fun foreignLinkIsIgnoredAndErrorLinkThrows() = runTest {
+        val repo = FakeAuthRepository()
+        val store = AuthStore(repo, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+        store.handleDeepLink("https://example.com/x")
+        assertEquals(emptyList(), repo.calls)
+        assertFailsWith<IllegalStateException> {
+            store.handleDeepLink("com.devtodollars.app://login-callback/reset#error=access_denied")
+        }
+        assertEquals(false, store.pendingPasswordReset.value)
     }
 }
