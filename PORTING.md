@@ -1115,3 +1115,66 @@ the auth screen and carries a line of explanatory copy.
 `auth.users` volume) — then drop guest access rather than reimplement it
 session-lessly, because the degraded-screen work above is the real cost and it
 does not get cheaper later.
+
+## D-010 — User-facing error copy: one shared `Throwable` → sentence mapper in `sharedLogic`
+
+**Chosen:** a single `Throwable.toUserFacingError()` in
+`sharedLogic/commonMain` (`errors/UserFacingError.kt`) that classifies a
+failure into an `ErrorKind` and returns the one sentence to show, plus the raw
+exception chain as `technicalDetail` for logs. Classification keys off typed
+fields only — `AuthRestException.errorCode` (GoTrue's stable `AuthErrorCode`),
+`RestException.statusCode`, and the exception type itself
+(`HttpRequestException` is what supabase-kt wraps every transport failure in,
+`HttpRequestTimeoutException` the timeout) — never off message text. Both
+platforms route through it: `Throwable.userMessage()` in `iosMain`'s
+`FlowWatch.kt` (so every `error.userMessage` in Swift gets it, with
+`technicalMessage()` going to `NSLog` in `Bridge.swift`), and
+`ui/Errors.kt`'s `Throwable.userMessage()` on Android, where the ViewModels
+log the raw failure at the one point every action funnels through. The copy
+table and the mapping are covered by `UserFacingErrorTest` in `commonTest`.
+
+**Rejected:**
+
+- **Showing `throwable.message`,** which is what both platforms did before.
+  Once task 13's `@Throws` fix made iOS render errors instead of aborting, the
+  "Continue without login" button with no backend reachable produced
+  `HTTP request to http://localhost:54321/auth/v1/signup (POST) failed with
+  message: Exception in http request: Error Domain=NSURLErrorDomain Code=-1004
+  … _kCFStreamErrorCodeKey=61, NSUnderlyingError=0x109b80b40 …` as a wall of
+  red text. It leaks internal URLs and host state, is unreadable, and tells the
+  user nothing they can do.
+- **Per-platform copy** (a Swift mapper and a Kotlin one). Two tables drift:
+  the same failure ends up with different wording, and every new error case has
+  to be remembered twice. The copy is product text, not platform behaviour, so
+  it belongs where the behaviour already is (D-001).
+- **Matching on message substrings** (`"Invalid login credentials"`,
+  `"already registered"`). GoTrue and supabase-kt both reword messages between
+  versions, and some are localised, so a substring table silently degrades to
+  the generic fallback on upgrade with no test failure to warn us. Error codes
+  are the field Supabase documents as stable.
+- **Discarding the raw failure** once the friendly sentence exists. The NSURL
+  detail above is exactly what tells a developer the local stack is down rather
+  than the credentials being wrong.
+
+**Why:** the friendly sentence and the diagnostic detail are two different
+audiences, and the fix is to separate them rather than choose one. Keying off
+`AuthErrorCode` also makes the mapping testable without a live backend: the
+cases that matter most here — `AnonymousProviderDisabled` (D-009's documented
+failure mode when `enable_anonymous_sign_ins` is off), `InvalidCredentials`,
+`EmailExists`, `EmailNotConfirmed`, the expired-link family and the rate limits
+— are enum values, so `commonTest` asserts the exact copy for each.
+
+**Costs accepted:** `AuthRestException` and `RestException` cannot be
+constructed without a real Ktor `HttpResponse`, so those branches are tested
+through `authErrorKind` / `httpStatusKind` — the same functions the throwable
+path delegates to — rather than end to end. New `AuthErrorCode` values added by
+a future supabase-kt fall through to the HTTP-status fallback until the table
+is extended, which is a silent degradation to a vaguer sentence rather than a
+failure. And `StripeException` no longer shows the edge function's own
+`message` (§2.3 lists "Unable to access customer record." and "plus raw GoTrue
+errors" among them); it is logged instead.
+
+**Reverses if:** the app needs localised error copy — then the mapper returns
+the `ErrorKind` alone and each platform resolves it against its own string
+catalog, which is why `ErrorKind` is public and separate from
+`ErrorKind.userMessage` rather than the sentence being inlined.

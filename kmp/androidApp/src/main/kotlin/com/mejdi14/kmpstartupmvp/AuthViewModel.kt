@@ -10,6 +10,7 @@ import com.mejdi14.kmpstartupmvp.auth.AuthStore
 import com.mejdi14.kmpstartupmvp.auth.DeepLinks
 import com.mejdi14.kmpstartupmvp.auth.GoogleSignIn
 import com.mejdi14.kmpstartupmvp.auth.IdTokenProvider
+import com.mejdi14.kmpstartupmvp.ui.logFailure
 import kotlinx.coroutines.launch
 
 /**
@@ -55,7 +56,11 @@ class AuthViewModel(private val store: AuthStore) : ViewModel() {
     fun signOut(onResult: (Result<Unit>) -> Unit = {}) = run(onResult) { store.signOut() }
 
     private fun run(onResult: (Result<Unit>) -> Unit, block: suspend () -> Unit) {
-        viewModelScope.launch { onResult(runCatching { block() }) }
+        viewModelScope.launch {
+            // Logged here, the one place every action funnels through (D-010): several call sites
+            // pass no callback, so without this their failures would disappear entirely.
+            onResult(runCatching { block() }.onFailure(::logFailure))
+        }
     }
 
     companion object {

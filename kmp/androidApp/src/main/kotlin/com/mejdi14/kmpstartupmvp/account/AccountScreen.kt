@@ -34,6 +34,7 @@ import com.mejdi14.kmpstartupmvp.ui.components.ErrorState
 import com.mejdi14.kmpstartupmvp.ui.components.ErrorText
 import com.mejdi14.kmpstartupmvp.ui.components.LoadingIndicator
 import com.mejdi14.kmpstartupmvp.ui.components.PrimaryButton
+import com.mejdi14.kmpstartupmvp.ui.userMessage
 
 /** Shown for delete-account: the fixed backend has no self-service deletion path (PORTING.md §2.1/§2.3/§2.4). */
 internal const val DELETE_BLOCKED_MESSAGE =
@@ -133,7 +134,7 @@ private fun ProfileForm(
                     failed = result.isFailure
                     message = result.fold(
                         onSuccess = { "Profile saved" },
-                        onFailure = { it.message ?: "Failed to save profile" },
+                        onFailure = { it.userMessage() },
                     )
                 }
             },

@@ -1,5 +1,6 @@
 package com.mejdi14.kmpstartupmvp.ios
 
+import com.mejdi14.kmpstartupmvp.errors.toUserFacingError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -21,5 +22,14 @@ private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 fun <T : Any?> StateFlow<T>.watch(onEach: (T) -> Unit): Watcher =
     Watcher(mainScope.launch { collect { onEach(it) } })
 
-/** Message of a Kotlin throwable surfaced to Swift as an `NSError` (null-safe for Swift callers). */
-fun Throwable.userMessage(): String = message ?: this::class.simpleName ?: "Something went wrong"
+/**
+ * The one sentence to show for a Kotlin throwable surfaced to Swift as an `NSError` (D-010).
+ * The copy lives in `commonMain`, so iOS and Android say the same thing for the same failure.
+ */
+fun Throwable.userMessage(): String = toUserFacingError().message
+
+/**
+ * The raw failure behind [userMessage] — SDK exception chain and all. Swift logs this, so the
+ * Ktor/NSURL detail that used to be shown to the user is still available when debugging (D-010).
+ */
+fun Throwable.technicalMessage(): String = toUserFacingError().technicalDetail

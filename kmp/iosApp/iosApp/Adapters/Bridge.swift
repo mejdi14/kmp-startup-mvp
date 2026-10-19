@@ -23,13 +23,16 @@ func observeOptional<T>(_ flow: Kotlinx_coroutines_coreStateFlow, as type: T.Typ
 }
 
 extension Error {
-    /// Message of a failed Kotlin suspend call (surfaced as an `NSError` wrapping the throwable).
+    /// The one sentence to show for a failed call (D-010). Kotlin failures arrive as an `NSError`
+    /// wrapping the throwable; the copy comes from `sharedLogic`, so it matches Android exactly.
+    /// The raw SDK/NSURL detail is logged rather than shown — it used to be the whole message.
     var userMessage: String {
         let ns = self as NSError
-        if let throwable = ns.userInfo["KotlinException"] as? KotlinThrowable {
-            return throwable.userMessage()
+        guard let throwable = ns.userInfo["KotlinException"] as? KotlinThrowable else {
+            return localizedDescription
         }
-        return localizedDescription
+        NSLog("[AppError] %@", throwable.technicalMessage())
+        return throwable.userMessage()
     }
 }
 

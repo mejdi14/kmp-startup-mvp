@@ -34,6 +34,7 @@ import com.mejdi14.kmpstartupmvp.ui.components.AppTextField
 import com.mejdi14.kmpstartupmvp.ui.components.ErrorText
 import com.mejdi14.kmpstartupmvp.ui.components.OutlineTextButton
 import com.mejdi14.kmpstartupmvp.ui.components.PrimaryButton
+import com.mejdi14.kmpstartupmvp.ui.userMessage
 
 /**
  * Port of Flutter's `AuthScreen` + `EmailForm` (§1.1). Google (native) and GitHub (browser)
@@ -65,7 +66,7 @@ private fun SocialButtons(viewModel: AuthViewModel) {
     val onResult: (Result<Unit>) -> Unit = { result ->
         // Success is the auth gate's job; a dismissed Google picker is not worth an error banner.
         result.onFailure {
-            errorMessage = if (it is GetCredentialCancellationException) "" else it.message ?: "Something went wrong"
+            errorMessage = if (it is GetCredentialCancellationException) "" else it.userMessage()
         }
     }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -101,7 +102,7 @@ private fun GuestButton(viewModel: AuthViewModel) {
                 viewModel.continueAsGuest { result ->
                     loading = false
                     // Success is the auth gate's job.
-                    result.onFailure { errorMessage = it.message ?: "Could not continue as guest" }
+                    result.onFailure { errorMessage = it.userMessage() }
                 }
             },
         ) {
@@ -144,7 +145,7 @@ private fun EmailForm(viewModel: AuthViewModel) {
         errorMessage = ""
         val onResult: (Result<Unit>) -> Unit = { result ->
             loading = false
-            result.onFailure { errorMessage = it.message ?: "Something went wrong" }
+            result.onFailure { errorMessage = it.userMessage() }
         }
         if (isSignUp) {
             viewModel.signUp(email, password) { result ->

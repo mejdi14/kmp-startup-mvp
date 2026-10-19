@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.unit.dp
 import com.mejdi14.kmpstartupmvp.ui.components.AppTextField
+import com.mejdi14.kmpstartupmvp.ui.userMessage
 
 /**
  * Port of Flutter's `ResetPasswordDialog` (§1.1), shown after the `/reset` deep link signs the
@@ -62,7 +63,7 @@ fun ResetPasswordDialog(
                         loading = false
                         result.fold(
                             onSuccess = { onDismiss() },
-                            onFailure = { error = it.message ?: "Something went wrong" },
+                            onFailure = { error = it.userMessage() },
                         )
                     }
                 },
