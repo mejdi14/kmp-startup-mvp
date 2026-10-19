@@ -29,6 +29,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.mejdi14.kmpstartupmvp.PaymentsViewModel
 import com.mejdi14.kmpstartupmvp.ui.components.LoadingIndicator
+import com.mejdi14.kmpstartupmvp.ui.userMessage
 import kotlinx.coroutines.CancellationException
 
 /** Opens [url] in a Custom Tab (D-005); the Stripe `return_url` deep link brings the user back. */
@@ -59,7 +60,7 @@ fun PaymentsScreen(price: String?, viewModel: PaymentsViewModel, onDone: () -> U
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            error = e.message ?: "Error retrieving stripe redirect url"
+            error = e.userMessage()
         }
     }
 

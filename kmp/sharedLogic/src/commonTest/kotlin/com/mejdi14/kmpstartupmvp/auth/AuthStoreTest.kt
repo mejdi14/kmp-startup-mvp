@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import com.mejdi14.kmpstartupmvp.errors.AuthLinkException
 import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 
@@ -168,7 +169,7 @@ class AuthStoreTest {
         val store = AuthStore(repo, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
         store.handleDeepLink("https://example.com/x")
         assertEquals(emptyList(), repo.calls)
-        assertFailsWith<IllegalStateException> {
+        assertFailsWith<AuthLinkException> {
             store.handleDeepLink("com.devtodollars.app://login-callback/reset#error=access_denied")
         }
         assertEquals(false, store.pendingPasswordReset.value)

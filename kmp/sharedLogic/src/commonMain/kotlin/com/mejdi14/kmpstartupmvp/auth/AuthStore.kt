@@ -1,5 +1,6 @@
 package com.mejdi14.kmpstartupmvp.auth
 
+import com.mejdi14.kmpstartupmvp.errors.AuthLinkException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -86,7 +87,7 @@ class AuthStore(
             is DeepLink.OAuthCallback -> repository.exchangeCodeForSession(link.code)
             // Payments links are routed by the PaymentsStore, not auth.
             DeepLink.StripeReturn, is DeepLink.OpenPayments -> Unit
-            is DeepLink.LinkError -> throw IllegalStateException(link.message)
+            is DeepLink.LinkError -> throw AuthLinkException(link.message)
             null -> Unit
         }
     }

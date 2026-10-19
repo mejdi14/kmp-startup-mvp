@@ -16,6 +16,7 @@ import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.mejdi14.kmpstartupmvp.ui.components.AppTextField
+import com.mejdi14.kmpstartupmvp.ui.userMessage
 
 /** Port of Flutter's `RecoverPasswordDialog` (§1.1): request a reset email for [initialEmail]. */
 @Composable
@@ -61,7 +62,7 @@ fun RecoverPasswordDialog(
                         loading = false
                         result.fold(
                             onSuccess = { onDismiss() },
-                            onFailure = { error = it.message ?: "Something went wrong" },
+                            onFailure = { error = it.userMessage() },
                         )
                     }
                 },
