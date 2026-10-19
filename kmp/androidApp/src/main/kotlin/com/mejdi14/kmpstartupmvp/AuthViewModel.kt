@@ -52,7 +52,11 @@ class AuthViewModel(private val store: AuthStore) : ViewModel() {
         password: String,
         onResult: (Result<AccountConversion>) -> Unit = {},
     ) {
-        viewModelScope.launch { onResult(runCatching { store.saveGuestAccount(email, password) }) }
+        // Not via run(): this one returns an AccountConversion rather than Unit. It still logs
+        // the raw failure, so D-010's "every action funnels through here" stays true.
+        viewModelScope.launch {
+            onResult(runCatching { store.saveGuestAccount(email, password) }.onFailure(::logFailure))
+        }
     }
 
     fun recoverPassword(email: String, onResult: (Result<Unit>) -> Unit = {}) =
