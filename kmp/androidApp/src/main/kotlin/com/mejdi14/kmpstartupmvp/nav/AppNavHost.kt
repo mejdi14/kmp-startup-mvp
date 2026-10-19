@@ -5,8 +5,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,6 +20,8 @@ import androidx.navigation.compose.rememberNavController
 import com.mejdi14.kmpstartupmvp.AuthViewModel
 import com.mejdi14.kmpstartupmvp.auth.AsyncValue
 import com.mejdi14.kmpstartupmvp.auth.AuthScreen
+import com.mejdi14.kmpstartupmvp.ui.components.LoadingIndicator
+import com.mejdi14.kmpstartupmvp.ui.components.PrimaryButton
 
 /**
  * Nav graph + D-002 auth gate. The graph is built once; navigation happens only
@@ -47,19 +47,12 @@ fun AppNavHost(authViewModel: AuthViewModel, modifier: Modifier = Modifier) {
     }
 
     NavHost(navController = navController, startDestination = Routes.forGate(gate), modifier = modifier) {
-        composable(Routes.LOADING) { LoadingScreen() }
+        composable(Routes.LOADING) { LoadingIndicator() }
         composable(Routes.LOGIN) { AuthScreen(authViewModel) }
         composable(Routes.HOME) { SignedInPlaceholder(authViewModel) }
         // Task 9 (password-reset dialog) and task 11 (payments, ?price=) fill these in; deep links come with task 9.
         composable(Routes.RESET) { PlaceholderScreen("Reset password") }
         composable(Routes.PAYMENTS) { PlaceholderScreen("Payments") }
-    }
-}
-
-@Composable
-private fun LoadingScreen() {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator()
     }
 }
 
@@ -75,7 +68,7 @@ private fun SignedInPlaceholder(authViewModel: AuthViewModel) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text("Signed in as $email")
-            Button(onClick = { authViewModel.signOut() }) { Text("Sign out") }
+            PrimaryButton(text = "Sign out", onClick = { authViewModel.signOut() })
         }
     }
 }

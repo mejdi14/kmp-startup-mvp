@@ -261,6 +261,8 @@ and task 4's screens visibly use them instead of raw Material3 defaults.
 screens — the tokens themselves don't strictly require it, but there's
 nothing to retrofit before task 4 exists.
 
+**Status:** code written and compiled (`./gradlew :androidApp:assembleDebug`); `:androidApp:testDebugUnitTest` passes. Theme (`ui/theme/Theme.kt`, light only) and components (`ui/components/Components.kt`: PrimaryButton, AppTextField w/ autofill, ErrorText, OutlineTextButton, LoadingIndicator, ErrorState) added; `AuthScreen`, the loading route and the placeholder home now use them. The palette is a hand-written approximation of Flutter's `fromSeed(deepPurple)` scheme, not bit-exact. **Pending (runtime/manual, not run):** visual check on a device that the screens render with the theme.
+
 ---
 
 ## Task 7 — `screen-porter` agent

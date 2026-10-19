@@ -9,12 +9,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -26,12 +23,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
-import androidx.compose.ui.semantics.contentType
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.mejdi14.kmpstartupmvp.AuthViewModel
+import com.mejdi14.kmpstartupmvp.ui.components.AppTextField
+import com.mejdi14.kmpstartupmvp.ui.components.ErrorText
+import com.mejdi14.kmpstartupmvp.ui.components.PrimaryButton
 
 /**
  * Port of Flutter's `AuthScreen` + `EmailForm` (§1.1). Email/password only; SSO
@@ -103,58 +100,39 @@ private fun EmailForm(viewModel: AuthViewModel) {
     Column(horizontalAlignment = Alignment.Start, modifier = Modifier.fillMaxWidth()) {
         Text(if (isSignUp) "Create an account" else "Login", style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(16.dp))
-        OutlinedTextField(
+        AppTextField(
             value = email,
             onValueChange = { email = it },
-            label = { Text("Email") },
+            label = "Email",
             enabled = !loading,
-            singleLine = true,
-            isError = emailError != null,
-            supportingText = emailError?.let { { Text(it) } },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics { contentType = ContentType.EmailAddress },
+            error = emailError,
+            keyboardType = KeyboardType.Email,
+            autofillType = ContentType.EmailAddress,
         )
         Spacer(Modifier.height(16.dp))
-        OutlinedTextField(
+        AppTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Password") },
+            label = "Password",
             enabled = !loading,
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            isError = passwordError != null,
-            supportingText = passwordError?.let { { Text(it) } },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics { contentType = ContentType.Password },
+            error = passwordError,
+            obscure = true,
+            autofillType = ContentType.Password,
         )
         if (isSignUp) {
             Spacer(Modifier.height(16.dp))
-            OutlinedTextField(
+            AppTextField(
                 value = confirm,
                 onValueChange = { confirm = it },
-                label = { Text("Confirm Password") },
+                label = "Confirm Password",
                 enabled = !loading,
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                isError = confirmError != null,
-                supportingText = confirmError?.let { { Text(it) } },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .semantics { contentType = ContentType.Password },
+                error = confirmError,
+                obscure = true,
+                autofillType = ContentType.Password,
             )
         }
         if (errorMessage.isNotEmpty()) {
-            Text(
-                errorMessage,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(top = 8.dp),
-            )
+            ErrorText(errorMessage, Modifier.padding(top = 8.dp))
         }
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth().padding(bottom = 24.dp), horizontalArrangement = Arrangement.Start) {
@@ -166,12 +144,11 @@ private fun EmailForm(viewModel: AuthViewModel) {
                 Text(if (isSignUp) "Have an account?" else "Don't have an account?")
             }
         }
-        Button(onClick = ::submit, enabled = !loading, modifier = Modifier.fillMaxWidth()) {
-            Text(
-                if (isSignUp) "Create Account" else "Login",
-                modifier = Modifier.padding(vertical = 10.dp),
-            )
-        }
+        PrimaryButton(
+            text = if (isSignUp) "Create Account" else "Login",
+            onClick = ::submit,
+            enabled = !loading,
+        )
     }
 
     if (showCheckEmail) {
