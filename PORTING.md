@@ -2,6 +2,7 @@
 
 **Status:** planning complete, no screens ported. Architecture decisions recorded in §4.
 **Scope:** Android + iOS only. No web, no desktop.
+**UI approach:** fully native UIs. Android = Jetpack Compose + Navigation Compose; iOS = SwiftUI + `NavigationStack`. Shared Kotlin is business/data logic only. No Compose Multiplatform UI, no shared Compose navigation. (Revised 2026-10-19, Task 0.)
 **Written:** 2026-10-15.
 
 Read this file before doing any work in `kmp/`. It is written for someone
@@ -18,7 +19,15 @@ read this instead of re-exploring `flutter/`.
 - `BOILERPLATE-NOTES.md`, `docs/` and the root `.claude/agents/*.md` describe the
   original Flutter/Next.js boilerplate. They are **reference, not instructions**
   for this project.
-- The KMP project lives in `kmp/`.
+- The KMP project lives in `kmp/`, with three modules: `sharedLogic` (Kotlin
+  Multiplatform, **non-UI**: config, Supabase client, repositories, auth/metadata
+  state holders, auth-gate derivation, deep-link URL parsing), `androidApp`
+  (native Jetpack Compose UI), and `iosApp` (native SwiftUI UI, consuming the
+  `SharedLogic` framework). There is no `sharedUI` module.
+- **UI is never shared.** Screens, navigation, themes, and presentation
+  adapters (the glue between shared state and a platform's UI framework) are
+  written separately per platform. Shared code must not depend on Compose,
+  Compose Multiplatform, AndroidX navigation, or any UI toolkit.
 
 ---
 
@@ -735,7 +744,7 @@ that's an unrelated fork/squat, not the project used by `supabase-kt` docs).
   platforms, add it to Supabase's redirect allow-list (§2.8), and wire it to
   `importSession`.
 
-## 3.2 State management for Compose Multiplatform, replacing Riverpod
+## 3.2 State management, replacing Riverpod
 
 **There is no drop-in Riverpod equivalent** — Riverpod is Dart/Flutter-only.
 The ecosystem question is really "what plays the role of
@@ -781,6 +790,12 @@ are three live answers, all actively maintained as of this research:
    lifecycle scoping — just the state-stream mechanism. Pairs well *with*
    plain `ViewModel`s rather than replacing them outright.
 
+> **Superseded in part (2026-10-19):** this section was written assuming
+> Compose Multiplatform UI. The UI is now native per platform (see D-001), so
+> the shared layer exposes plain Kotlin `StateFlow` state holders rather than
+> AndroidX `ViewModel`s; Android wraps them in a `ViewModel`, iOS in an
+> `ObservableObject`. The research below is kept as the survey of options.
+
 **For this specific port:** plain multiplatform `ViewModel` + `StateFlow`
 (option 1) is the closest like-for-like replacement for the three Riverpod
 providers and adds the least new surface area. Decompose only earns its
@@ -807,51 +822,52 @@ Each record: what was chosen, what was rejected and why, and the condition
 that would flip the decision later. These resolve the `D-00x` forward
 references scattered through §1–§3. No code here — decisions only.
 
-## D-001 — State management: multiplatform `ViewModel` + `StateFlow`
+## D-001 — State management: shared `StateFlow` state holders + native presentation adapters
 
-**Chosen:** one AndroidX multiplatform `ViewModel` per Riverpod provider
-(`AuthViewModel` for `authProvider`, `MetadataViewModel` for
-`metadataProvider`), each exposing a `StateFlow` collected in Compose via
-`collectAsStateWithLifecycle`. A hand-written sealed result type plays the
-role of `AsyncValue<T>`.
+**Chosen:** the shared module (`sharedLogic`) contains, per Riverpod provider,
+a plain Kotlin state holder (`AuthStore` for `authProvider`, `MetadataStore`
+for `metadataProvider`) that owns business/data logic and exposes
+`StateFlow`. It has **no dependency on any UI or lifecycle library** — no
+Compose, no AndroidX `ViewModel`. A hand-written sealed result type plays the
+role of `AsyncValue<T>`. Each platform adapts the stores to its own UI layer:
+- **Android:** a thin AndroidX `ViewModel` per store (scoped via
+  `viewModelScope`), collected in Compose with `collectAsStateWithLifecycle`.
+- **iOS:** a thin `ObservableObject` per store (`@MainActor`, `@Published`),
+  observed from SwiftUI. How the Kotlin `StateFlow` is bridged to Swift
+  (hand-written collector wrapper vs. a library such as SKIE) is decided in
+  Task 13 when iOS is first built; it is purely an iOS-side choice and does not
+  change the shared API.
+
+These adapters are presentation code and live in `androidApp` / `iosApp`, not
+in `sharedLogic`.
 
 **Rejected:**
-- **Decompose** — bundles navigation, `InstanceKeeper`/`StateKeeper`, and a
-  component tree on top of state management. Capable, but this app has 3
-  screens and 3 providers; adopting Decompose's component model everywhere
-  to get its state story is more surface area than the problem needs.
-- **Molecule** — elegant for the concurrent-fetch merge in
-  `metadata_notifier.dart` (`(getUserDetails(), getSubscription()).wait`),
-  but it has no opinion on lifecycle scoping or navigation, so it would still
-  need a `ViewModel` (or equivalent) wrapped around it. Net new dependency
-  for a pattern `combine`/a coroutine `async {}` block already covers.
-- **Hand-rolled `StateFlow` in a plain class** — no lifecycle-awareness
-  (cancellation on scope end, `collectAsStateWithLifecycle` integration)
-  without reimplementing what `ViewModel` already gives for free.
+- **Shared Compose Multiplatform UI + multiplatform `ViewModel`** (the
+  original D-001) — superseded by the decision to build native UIs. It would
+  force a Compose dependency into shared code and a non-native iOS UI.
+- **Decompose** — bundles navigation and a component tree; that conflicts with
+  using each platform's native navigation (D-007).
+- **Molecule** — its presenters are `@Composable`, i.e. a Compose dependency
+  in shared code.
+- **Hand-rolled state with no store abstraction** — would duplicate the
+  concurrent-fetch merge and auth-gate logic in both UIs.
 
-**Why:** `ViewModel` is the closest conceptual match to
-`StreamNotifierProvider`/`AsyncNotifierProvider` (§1.2), is the
-"official"/Google-aligned option, and every other candidate adds capability
-(navigation, presenter composition) this port doesn't need yet. Keeping
-state management minimal also keeps D-007 (routing) and D-002 (auth gate)
-decoupled from it, instead of locked into one framework's opinions on all
-three.
+**Why:** keeps all business behavior (auth-gate derivation per D-002, the
+concurrent `getUserDetails()` + `getSubscription()` fetch, session restore)
+written and tested once, while every pixel and every navigation decision stays
+native. `StateFlow` is the idiomatic shared-Kotlin state primitive and is
+consumable from both Compose and Swift.
 
-**Reverses if:** the app grows past a handful of screens and needs
-cross-screen back-stack state retention or a formal component tree — at that
-point Decompose's bundled nav+state pays for itself and this decision and
-D-007 would be revisited together, not separately. Also reverses if the
-multiplatform `ViewModel`'s Experimental status (§3.2) regresses or its iOS
-support turns out thinner in practice than the 2.11.0 release notes claim —
-fallback would be Molecule-backed presenters, since they don't depend on the
-`ViewModelStoreOwner` multiplatform story at all.
+**Reverses if:** the Kotlin→Swift `StateFlow` bridge proves too costly in
+practice (Task 13) — fallback is callback/listener APIs on the stores. Does
+not reverse because of anything on the Android side.
 
 ## D-002 — Auth-driven navigation: single derived auth-gate state, not raw `Session?`
 
-**Chosen:** collapse the `Session?` stream from `AuthViewModel` into a small
+**Chosen:** collapse the `Session?` stream from `AuthStore` into a small
 derived state — `Unknown` (startup, still restoring) / `LoggedOut` /
 `LoggedIn` — with `distinctUntilChanged()` semantics, and only navigate
-imperatively on a transition between those three values. Silent token
+imperatively on a transition between those three values. The derivation lives in shared code (`AuthStore`); each platform's navigation (D-007) consumes it. Silent token
 refreshes (hourly, §1.7) update the session object inside `LoggedIn` without
 emitting a new auth-gate value and without touching navigation.
 
@@ -860,14 +876,14 @@ is fully rebuilt on *every* `authProvider` emission, including token
 refreshes, propped up only by a shared `navigatorKey` global to stop the
 widget tree from being discarded (§1.6). It works in Flutter by accident of
 how `navigatorKey` papers over the rebuild; there's no equivalent accidental
-safety net in a Compose Multiplatform nav graph, and deliberately rebuilding
+safety net in either platform's native navigation stack, and deliberately rebuilding
 the graph hourly has no upside here.
 
 **Why:** the hourly `tokenRefreshed` event doesn't change *what screen the
 user should be on* — it only changes the session payload. Separating "is the
 user logged in" from "what is the current session object" removes the
 rebuild-on-refresh bug class at the root instead of working around it per
-screen. This also makes `MetadataViewModel`'s refetch trigger (§1.2: refetch
+screen. This also makes `MetadataStore`'s refetch trigger (§1.2: refetch
 on login/logout/refresh) independently tunable from navigation, instead of
 both being driven by the same raw stream emission.
 
@@ -985,29 +1001,46 @@ session tokens — then swap in a custom `SessionManager`/`Settings`
 implementation; supabase-kt's `SessionManager` interface (§3.1) is built to
 be replaced without touching call sites elsewhere in the app.
 
-## D-007 — Navigation/routing library: Compose Multiplatform Navigation
+## D-007 — Navigation/routing: native per platform (split by platform)
 
-**Chosen:** `androidx.navigation` multiplatform (the Compose Multiplatform
-Navigation library) as the `go_router` replacement, with the route table
-from §1.6 (`/login`, `/`, `/reset`, `/payments`) ported 1:1 and the auth
-redirect logic implemented as the D-002 auth-gate, not as a per-navigation
-guard re-evaluated on every recomposition.
+The route table from §1.6 (`/login`, `/`, `/reset`, `/payments`, plus the
+`/loading` splash state) is ported **once per platform, natively**. Both
+implementations are driven by the same shared D-002 auth-gate state
+(`Unknown`/`LoggedOut`/`LoggedIn`); neither re-evaluates a guard on every
+recomposition/redraw. Route names are kept identical on both platforms so
+analytics (task 12) emits the same screen names.
 
-**Rejected:** Decompose's own navigation model. Decompose is a real,
-actively maintained option (§3.2) and would give StateKeeper-based
-process-death survival for free, but adopting it *only* for routing while
-using plain `ViewModel`s for state (D-001) splits the app across two
-different component philosophies for no benefit — if Decompose is ever
-adopted it should be for both state and nav together (see D-001's reversal
-condition), not one at a time.
+### D-007a — Android: Navigation Compose
 
-**Why:** keeps the navigation layer and the state-management layer (D-001)
-independent and each swappable on its own, which matches this app's small
-size better than committing to a single framework that wants to own both.
+**Chosen:** `androidx.navigation:navigation-compose` (`NavHost` +
+`NavController`) in `androidApp`, navigating only on auth-gate transitions.
+Dialog-style destinations (`/reset`) use Navigation Compose's `dialog`
+destinations. Deep links are handled via manifest intent-filters mapped to
+nav deep links (D-003).
 
-**Reverses if:** D-001 reverses to Decompose — the two decisions are linked
-in practice even though recorded separately, because splitting them was the
-explicit reason to reject Decompose here.
+**Rejected:** Decompose navigation (conflicts with D-001's native-adapter
+model), and any shared/multiplatform navigation library.
+
+### D-007b — iOS: SwiftUI `NavigationStack`
+
+**Chosen:** `NavigationStack` with a typed path / `navigationDestination(for:)`
+in `iosApp`, with the root view switching on the auth-gate state (a
+loading view for `Unknown`, the login stack for `LoggedOut`, the signed-in
+stack for `LoggedIn`). `/reset` and similar are presented as sheets. Deep
+links arrive through `onOpenURL` (D-003) and are parsed by shared URL-parsing
+code.
+
+**Rejected:** UIKit navigation controllers and third-party SwiftUI routers —
+no need beyond what `NavigationStack` provides at this app's size.
+
+**Why (both):** platform-native navigation gives native back gestures,
+transitions, and state restoration for free, and removes any need for shared
+UI code. Keeping navigation per platform leaves D-001's shared stores
+unaware of navigation.
+
+**Reverses if:** the project ever decides to share UI after all (a new
+decision superseding the native-UI approach) — only then would a shared
+navigation library be reconsidered.
 
 ## D-008 — OAuth sign-in mechanism: native SDK for Google/Apple, browser redirect for GitHub
 

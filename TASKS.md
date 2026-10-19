@@ -10,9 +10,25 @@ this file can pick it up with no other context.
 only, never modified. `supabase/` is fixed except the §2.8 redirect
 allow-list change. The KMP project lives in `kmp/`.
 
+**Native UIs (revised in Task 0):** the shared module `sharedLogic` is
+business/data only — no UI, no Compose, no navigation. Android UI is Jetpack
+Compose with Navigation Compose (`androidApp`); iOS UI is SwiftUI with
+`NavigationStack` (`iosApp`). Screens, navigation, themes, and presentation
+adapters (shared `StateFlow` store → `ViewModel` on Android, `ObservableObject`
+on iOS; see D-001) are per-platform. There is no `sharedUI` module and no
+Compose Multiplatform UI. Wherever a task below says "ViewModel," it means the
+shared store (business logic) plus the thin Android adapter; the iOS adapter is
+built in task 13.
+
+**Task 0 — done:** project scaffold in `kmp/` (`androidApp` native Compose +
+Navigation Compose placeholder, `iosApp` native SwiftUI, `sharedLogic` non-UI
+KMP library; `sharedUI` removed), root `.gitignore`, and this documentation
+rewrite for native UIs.
+
 **Platform sequencing:** tasks 1–12 are built and verified on **Android
-only**. Task 13 is where iOS is brought up and everything built so far gets
-verified there too. Where a task below says "a real device," read that as
+only** (shared logic is written to compile for iOS, but no SwiftUI is written
+before task 13). Task 13 is where the complete SwiftUI UI and navigation are
+built and everything built so far gets verified on iOS too. Where a task below says "a real device," read that as
 "a real Android device" for every task before 13. Two tasks below break that
 clean sequencing and are flagged explicitly where they occur: part of task 9
 (iOS deep-link registration is config-only until 13) and part of task 10
@@ -102,8 +118,9 @@ storage wiring both work end-to-end with no UI involved.
 
 ## Task 3 — Auth logic
 
-**Covers:** an `AuthViewModel` (per D-001) replacing the `Auth`
-`StreamNotifier` (§1.2): `signInWithPassword`, `signUp`, `recoverPassword`,
+**Covers:** a shared `AuthStore` (per D-001, in `sharedLogic`, no UI
+dependencies) plus the thin Android `AuthViewModel` adapter, replacing the `Auth`
+`StreamNotifier` (§1.2). The store provides: `signInWithPassword`, `signUp`, `recoverPassword`,
 `updatePassword`, `signOut`, and session restore on launch reproducing the
 "emit null-or-restored-session exactly once at startup" behavior the
 porting-critical note in §1.2 calls out. Also exposes the small derived
@@ -118,12 +135,12 @@ per D-008, not carried over as dead code. **Deliberately deferred to task
 auth-state-and-side-effect-free logic. **Deliberately deferred to task 8:**
 the `Metadata` notifier (subscription/profile fetch) — its only consumer in
 Flutter is `HomeScreen` (§1.2), so it's built alongside that screen, not
-here. **ViewModels and state only — no screens.**
+here. **Stores and state only — no screens.**
 
 **Flutter files:** `flutter/lib/services/auth_notifier.dart` (not
 `auth_notifier.g.dart` — generated, don't hand-port, §1.2).
 
-**Done when:** the `AuthViewModel`'s state is verifiable from a test or a
+**Done when:** the `AuthStore`'s state is verifiable from a test or a
 debug harness with no screen attached — session restore, sign-in, sign-up,
 sign-out, and the three-state auth-gate derivation all work against a real
 or fake Supabase client.
@@ -132,9 +149,11 @@ or fake Supabase client.
 
 ---
 
-## Task 4 — Auth UI
+## Task 4 — Auth UI (Android)
 
-**Covers:** Compose screens for login and sign-up — Flutter has one screen
+**Android only** (Jetpack Compose in `androidApp`; the SwiftUI equivalent is built in task 13).
+
+**Covers:** Jetpack Compose screens for login and sign-up — Flutter has one screen
 (`AuthScreen`) whose embedded `EmailForm` toggles between the two via an
 `AuthAction` enum (§1.1); port that shape rather than splitting into two
 separate screens if it's not needed. Validation rules carried over exactly:
@@ -161,14 +180,16 @@ they're not yet reachable through real app navigation — task 5 wires that.
 
 ---
 
-## Task 5 — Navigation and auth gate
+## Task 5 — Navigation and auth gate (Android)
+
+**Android only:** Navigation Compose in `androidApp`; the SwiftUI `NavigationStack` equivalent is built in task 13.
 
 **This is the vertical-slice gate.** Per the build order: it must build and
 run on a real Android device with a working login before any task after it
 starts.
 
-**Covers:** the nav graph (Compose Multiplatform Navigation, decision
-D-007) covering the Flutter route table in §1.6 — `/login`, `/`, `/reset`,
+**Covers:** the nav graph (Navigation Compose, decision
+D-007a) covering the Flutter route table in §1.6 — `/login`, `/`, `/reset`,
 `/payments` — plus the `/loading` splash state (§1.1: not a real screen
 class in Flutter, just a spinner; port it the same way). Implements the
 signed-in/signed-out split as decision D-002: navigate only on a transition
@@ -200,13 +221,15 @@ working login is the literal done criterion.
 
 ---
 
-## Task 6 — Theme and shared components
+## Task 6 — Theme and shared components (Android)
 
-**Covers:** a Material3 theme seeded from Flutter's
+**Android only.** "Shared" here means shared across Android screens, not across platforms; iOS theming is part of task 13.
+
+**Covers:** a Jetpack Compose Material3 theme seeded from Flutter's
 `ColorScheme.fromSeed(seedColor: Colors.deepPurple)` (`0xFF673AB7` — PORTING.md
-§1.9 already confirms this is a faithful KMP match) and a small shared
+§1.9 already confirms this is a faithful Material3 match) and a small shared
 component set: primary button (`.primary`/`.onPrimary`), text field (with
-whatever autofill-hint equivalent Compose Multiplatform offers, replacing
+Compose's autofill support, replacing
 Flutter's `AutofillGroup`), inline error text (`.error`), "forgot password"
 style outline text (`.outline`), a loading indicator, and a generic error-state
 composable. There is very little to port here — Flutter barely themes
@@ -233,33 +256,41 @@ nothing to retrofit before task 4 exists.
 ## Task 7 — `screen-porter` agent
 
 **Covers:** writing `.claude/agents/screen-porter.md`, codifying the
-conventions fixed by tasks 1–6 so task 8 and the per-screen tasks in task 8's
-expansion can run as independent, low-context sessions: how a screen's
-ViewModel is structured (D-001), how a screen is added to the nav graph
-(D-002/D-007), which shared components from task 6 to reuse and how, the
-`setState`/Riverpod-`.watch` → `collectAsStateWithLifecycle` mapping
-convention, and the policy of fixing known typos/strings while porting
-(§1.9's string table) rather than copying them verbatim. The agent should be
-told explicitly to read `PORTING.md` §1.1 (screen inventory) for whichever
-specific screen it's asked to port.
+conventions fixed by tasks 1–6 (Android) and the iOS conventions decided in
+PORTING.md (D-001, D-007b) so per-screen work can run as independent,
+low-context sessions. It must document **both platform conventions**:
+- **Android (Jetpack Compose):** how a screen's `ViewModel` adapter wraps its shared
+  store (D-001), how a screen is added to the Navigation Compose graph
+  (D-002/D-007a), which task 6 components to reuse, and the
+  `setState`/Riverpod-`.watch` → `collectAsStateWithLifecycle` mapping.
+- **iOS (SwiftUI):** how a screen's `ObservableObject` adapter wraps its shared
+  store (D-001), how a screen is added to the `NavigationStack` (D-002/D-007b),
+  the SwiftUI theming/component conventions that task 13 will establish
+  (marked "to be confirmed in task 13" until then), and the
+  `setState`/`.watch` → `@Published`/`@StateObject` mapping.
+- Policy for both: business logic belongs in shared stores, never in a
+  screen; fix known typos/strings while porting (§1.9's string table) rather
+  than copying them verbatim. The agent reads `PORTING.md` §1.1 (screen
+  inventory) for whichever screen it is asked to port.
 
-**Flutter files:** none directly — this task's source material is
-`PORTING.md` §1.1–§1.9 plus tasks 1–6's actual output, not a new Flutter
-file.
+**Flutter files:** none directly — source material is `PORTING.md` §1.1–§1.9
+plus tasks 1–6's actual output.
 
 **Done when:** the agent file exists and is concrete enough that invoking it
-on a new screen doesn't require re-deriving conventions from scratch or
-re-reading tasks 1–6.
+on a new screen, for either platform, doesn't require re-deriving conventions
+or re-reading tasks 1–6.
 
 **Depends on:** Tasks 1–6 (it documents conventions that must already exist).
 
 ---
 
-## Task 8 — Home screen
+## Task 8 — Home screen (Android)
+
+**Android only** (Jetpack Compose; the SwiftUI Home screen is built in task 13).
 
 **Covers:** the one remaining screen (see the note at the top of this file)
 — `HomeScreen` (§1.1), using the `screen-porter` agent from task 7. Build a
-`MetadataViewModel` as the port of the `Metadata` notifier (§1.2): the
+shared `MetadataStore` (plus its thin Android `ViewModel` adapter) as the port of the `Metadata` notifier (§1.2): the
 concurrent `getUserDetails()` + `getSubscription()` fetch, refetching on
 login/logout/token-refresh. Fix rough edge #3 while porting it: the Flutter
 query is `.from('users').select('*').single()`, which throws if the profile
@@ -345,7 +376,7 @@ both platforms, native Sign in with Apple on iOS (new: Flutter never
 configured Apple at all, §2.2), and GitHub via the browser-redirect
 `signInWithOAuth` path reusing task 9's deep-link registration. Adds the SSO
 buttons to task 4's login screen and the corresponding sign-in methods to
-task 3's `AuthViewModel`. Includes the actual per-provider config: Google
+task 3's `AuthStore`. Includes the actual per-provider config: Google
 OAuth client registration, Apple's capability/entitlement setup — Supabase's
 local `config.toml` already has Google and GitHub OAuth enabled for local
 dev (§2.2); the hosted project's client IDs need verifying separately.
@@ -440,12 +471,18 @@ given order already guarantees by the time task 12 starts.
 
 ---
 
-## Task 13 — iOS target
+## Task 13 — iOS target (complete SwiftUI UI and navigation)
 
-**Everything before this task is Android only.** This task brings up iOS
-and verifies tasks 1–12 there, plus finishes the two things explicitly
-deferred to it above (task 9's iOS deep-link registration, task 10's Apple
-sign-in).
+**Everything before this task is Android only.** This task builds the
+**complete native SwiftUI UI** — every screen the Android tasks 4–11 produced
+(auth, home, payments, password dialogs/sheets, SSO buttons), the SwiftUI
+theme/components, and `NavigationStack` navigation driven by the shared
+auth-gate (D-002/D-007b) — plus the iOS presentation adapters
+(`ObservableObject` wrappers over the shared stores, including the
+`StateFlow`→Swift bridge decision from D-001). It then verifies tasks 1–12's
+shared logic there, and finishes the two things explicitly deferred to it
+above (task 9's iOS deep-link registration, task 10's Apple sign-in). SwiftUI
+screens are written natively, not translated from the Compose code.
 
 **Expect/actual gaps to anticipate** (a starting list, not exhaustive — budget
 real discovery time, not just these):
@@ -463,16 +500,16 @@ real discovery time, not just these):
 - **PostHog SDK initialization** (task 12): native per-platform call, same
   as it already is in the Flutter app (§1.5) — not a regression, just not
   shareable.
-- Compose Multiplatform-for-iOS quirks (safe areas, keyboard handling,
-  status bar) that typically only surface once actually running on iOS
-  hardware or the simulator.
+- Kotlin/Native interop quirks in the `SharedLogic` framework (Swift-facing
+  names, `StateFlow`/suspend bridging, sealed-class exposure) that typically
+  only surface once Swift code consumes it.
 
 **Flutter files:** none directly — per §1.6, OAuth return, email
 confirmation, and `/reset` never actually worked on iOS (or Android) in the
 Flutter app; only web worked. There is no working Flutter iOS behavior to
 port for those flows, so this is net-new correctness work, not a port.
 
-**Done when:** a full sign-up → confirm → sign-in → subscribe → see updated
+**Done when:** the SwiftUI screens and navigation cover the same flows as Android; a full sign-up → confirm → sign-in → subscribe → see updated
 plan status flow works on a real iOS device (not just the simulator — the
 Apple sign-in note in task 10 is specifically about device-vs-simulator
 provisioning differences), and task 9's deep link plus task 10's Apple
@@ -486,7 +523,7 @@ sign-in are both verified for the first time here.
 
 **Covers:** a GitHub Actions workflow that builds and tests on every PR —
 Android build always; iOS build too if a macOS runner is in budget. Runs the
-unit tests from tasks 2–3 (repository/ViewModel tests need no device) and
+unit tests from tasks 2–3 (repository/store tests need no device) and
 whatever's added later. Lint/static analysis as the rough analog to
 Flutter's `flutter_lints` (§1.8). **There is nothing to port here**: the
 Flutter app's only test is an empty `testWidgets('TODO: add tests')` stub
