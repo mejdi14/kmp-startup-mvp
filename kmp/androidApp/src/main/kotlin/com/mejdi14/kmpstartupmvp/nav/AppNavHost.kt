@@ -5,6 +5,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import com.mejdi14.kmpstartupmvp.KmpApplication
+import com.mejdi14.kmpstartupmvp.analytics.ScreenNames
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -35,6 +38,14 @@ fun AppNavHost(
     modifier: Modifier = Modifier,
 ) {
     val navController = rememberNavController()
+    val analytics = (LocalContext.current.applicationContext as KmpApplication).analytics
+
+    // Screen views, like Flutter's PosthogObserver: one per destination change (dialogs included, as /reset was a page there).
+    LaunchedEffect(navController) {
+        navController.currentBackStackEntryFlow.collect { entry ->
+            ScreenNames.forRoute(entry.destination.route)?.let(analytics::screen)
+        }
+    }
     val gate by authViewModel.authGate.collectAsState()
     val pendingReset by authViewModel.pendingPasswordReset.collectAsState()
 

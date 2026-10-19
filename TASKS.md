@@ -485,6 +485,8 @@ its triggering flow once, end to end.
 can't be fully closed out until the flows it's checking exist, which the
 given order already guarantees by the time task 12 starts.
 
+**Status:** implemented and compiled. Shared `AnalyticsTracker` interface + `AnalyticsSessionObserver` (`sharedLogic/.../analytics/`): `identify` on every non-null session emission (token refreshes included, as in Flutter), `reset` on null session. Android: `PostHogTracker` (posthog-android 3.72.4, config from manifest `com.posthog.posthog.*` meta-data, same key/host as Flutter), started in `KmpApplication`; screen views from `currentBackStackEntryFlow` via `ScreenNames` (`/`, `/login`, `/payments`, `/loading`, `/reset`, plus `/account`). Checks passed: `:sharedLogic:testAndroidHostTest` (3 new), `:androidApp:testDebugUnitTest` (3 new), `:androidApp:assembleDebug`. iOS PostHog init is task 13. **Pending (runtime/manual, not run):** confirming identify/reset/screen events in the PostHog project and the six server-emitted events by exercising each flow on a device.
+
 ---
 
 ## Task 13 — iOS target (complete SwiftUI UI and navigation)

@@ -24,6 +24,7 @@ dependencies {
     implementation(libs.androidx.credentials.playServices)
     implementation(libs.googleid)
     implementation(libs.androidx.browser)
+    implementation(libs.posthog.android)
     implementation(libs.compose.material3)
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)

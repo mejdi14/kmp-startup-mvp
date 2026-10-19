@@ -20,6 +20,7 @@ kotlinx-coroutines = "1.10.2"
 androidx-credentials = "1.5.0"
 googleid = "1.1.1"
 androidx-browser = "1.10.0"
+posthog-android = "3.72.4"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -54,6 +55,7 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 androidx-credentials = { module = "androidx.credentials:credentials", version.ref = "androidx-credentials" }
 androidx-credentials-playServices = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "androidx-credentials" }
 androidx-browser = { module = "androidx.browser:browser", version.ref = "androidx-browser" }
+posthog-android = { module = "com.posthog:posthog-android", version.ref = "posthog-android" }
 googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }
 
 [plugins]
