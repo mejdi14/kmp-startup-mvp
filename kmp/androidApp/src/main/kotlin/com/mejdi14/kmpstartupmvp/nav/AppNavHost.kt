@@ -1,11 +1,7 @@
 package com.mejdi14.kmpstartupmvp.nav
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -13,15 +9,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.mejdi14.kmpstartupmvp.AuthViewModel
-import com.mejdi14.kmpstartupmvp.auth.AsyncValue
+import com.mejdi14.kmpstartupmvp.MetadataViewModel
+import com.mejdi14.kmpstartupmvp.home.HomeScreen
 import com.mejdi14.kmpstartupmvp.auth.AuthScreen
 import com.mejdi14.kmpstartupmvp.ui.components.LoadingIndicator
-import com.mejdi14.kmpstartupmvp.ui.components.PrimaryButton
 
 /**
  * Nav graph + D-002 auth gate. The graph is built once; navigation happens only
@@ -29,7 +24,7 @@ import com.mejdi14.kmpstartupmvp.ui.components.PrimaryButton
  * but never change the gate, so nothing here reacts to them (§1.6 bug not ported).
  */
 @Composable
-fun AppNavHost(authViewModel: AuthViewModel, modifier: Modifier = Modifier) {
+fun AppNavHost(authViewModel: AuthViewModel, metadataViewModel: MetadataViewModel, modifier: Modifier = Modifier) {
     val navController = rememberNavController()
     val gate by authViewModel.authGate.collectAsState()
 
@@ -49,27 +44,16 @@ fun AppNavHost(authViewModel: AuthViewModel, modifier: Modifier = Modifier) {
     NavHost(navController = navController, startDestination = Routes.forGate(gate), modifier = modifier) {
         composable(Routes.LOADING) { LoadingIndicator() }
         composable(Routes.LOGIN) { AuthScreen(authViewModel) }
-        composable(Routes.HOME) { SignedInPlaceholder(authViewModel) }
+        composable(Routes.HOME) {
+            HomeScreen(
+                authViewModel = authViewModel,
+                metadataViewModel = metadataViewModel,
+                onOpenPayments = { navController.navigate(Routes.PAYMENTS) },
+            )
+        }
         // Task 9 (password-reset dialog) and task 11 (payments, ?price=) fill these in; deep links come with task 9.
         composable(Routes.RESET) { PlaceholderScreen("Reset password") }
         composable(Routes.PAYMENTS) { PlaceholderScreen("Payments") }
-    }
-}
-
-/** Stand-in for task 8's HomeScreen: proves the gate, nothing more. */
-@Composable
-private fun SignedInPlaceholder(authViewModel: AuthViewModel) {
-    val state by authViewModel.state.collectAsState()
-    val email = (state as? AsyncValue.Data)?.value?.email.orEmpty()
-    Scaffold { padding ->
-        Column(
-            Modifier.padding(padding).fillMaxSize().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text("Signed in as $email")
-            PrimaryButton(text = "Sign out", onClick = { authViewModel.signOut() })
-        }
     }
 }
 

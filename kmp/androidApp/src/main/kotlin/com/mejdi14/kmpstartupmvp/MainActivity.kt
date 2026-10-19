@@ -24,8 +24,10 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun App() {
     AppTheme {
-        val store = (LocalContext.current.applicationContext as KmpApplication).authStore
-        val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.factory(store))
-        AppNavHost(authViewModel)
+        val app = LocalContext.current.applicationContext as KmpApplication
+        val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.factory(app.authStore))
+        val metadataViewModel: MetadataViewModel =
+            viewModel(factory = MetadataViewModel.factory(app.metadataStore))
+        AppNavHost(authViewModel, metadataViewModel)
     }
 }

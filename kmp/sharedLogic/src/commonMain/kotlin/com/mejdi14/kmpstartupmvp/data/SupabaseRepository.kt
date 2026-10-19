@@ -7,7 +7,12 @@ import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.status.SessionStatus
+import com.mejdi14.kmpstartupmvp.metadata.MetadataRepository
+import com.mejdi14.kmpstartupmvp.metadata.SubscriptionWithPrice
+import com.mejdi14.kmpstartupmvp.metadata.UserMetadata
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
@@ -15,7 +20,7 @@ import kotlinx.coroutines.flow.map
 /**
  * Thin wrapper over the SDK so stores never touch it directly.
  */
-class SupabaseRepository(val client: SupabaseClient) : AuthRepository {
+class SupabaseRepository(val client: SupabaseClient) : AuthRepository, MetadataRepository {
     /**
      * Maps SDK status to [AuthStatus]. A refresh failure keeps the stored session
      * (the SDK retries), so it is dropped rather than treated as a sign-out.
@@ -61,6 +66,16 @@ class SupabaseRepository(val client: SupabaseClient) : AuthRepository {
     override suspend fun signOut() {
         client.auth.signOut()
     }
+
+    override suspend fun fetchUserDetails(): UserMetadata? =
+        client.from("users").select().decodeSingleOrNull<UserMetadata>()
+
+    override suspend fun fetchSubscription(): SubscriptionWithPrice? =
+        client.from("subscriptions").select(Columns.raw("*, prices(*, products(*))")) {
+            filter { isIn("status", listOf("trialing", "active")) }
+            order("created", Order.DESCENDING)
+            limit(1)
+        }.decodeSingleOrNull<SubscriptionWithPrice>()
 
     /** Unauthenticated read of the public `products` table (PORTING.md §2.1). */
     suspend fun fetchProductsRaw(): String =

@@ -330,6 +330,8 @@ payments correctness is task 11's job).
 
 **Depends on:** Tasks 5, 6, 7.
 
+**Status:** implemented and compiled. Shared `MetadataStore` + `MetadataRepository` + models (`sharedLogic/.../metadata/`), `maybeSingle` via `decodeSingleOrNull` (missing profile row -> `MissingProfileException` -> failed-to-load state), `MetadataViewModel`, `HomeScreen` (replaces the placeholder), Payments button navigates to `payments`, Logout -> `signOut`. Refetches on login/logout/`refresh()` but **not** on token refresh (rough edge #5, D-002). Added kotlinx-serialization plugin and `lifecycle-runtime-compose`. Checks passed: `:sharedLogic:testAndroidHostTest` (8 new MetadataStore tests), `:androidApp:testDebugUnitTest` (5 new HomeScreen tests), `:androidApp:assembleDebug`. Fixes: unnamed plan no longer renders "null". **Product-owner flag:** "See Pricing" still opens the placeholder GitHub README URL. **Pending (runtime/manual, not run):** all four states against local Supabase, forcing the missing-row case, logout returning to login, Payments navigation on a device; real-device confirmation of `screen-porter` (task 7).
+
 ---
 
 ## Task 9 — Account management
