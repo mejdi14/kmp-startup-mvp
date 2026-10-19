@@ -1,6 +1,6 @@
 # Porting DevToDollars from Flutter to Kotlin Multiplatform
 
-**Status:** planning complete, no screens ported.
+**Status:** planning complete, no screens ported. Architecture decisions recorded in §4.
 **Scope:** Android + iOS only. No web, no desktop.
 **Written:** 2026-10-15.
 
@@ -665,3 +665,378 @@ passes `return_url: returnUrl` with **no `|| undefined` guard** (unlike
 plausibly 400s with `"Could not create billing portal"`. Always send a non-null
 deep link. And because success and cancel are **the same URL**, the return tells
 you nothing: treat it purely as "stop waiting, go re-query `subscriptions`".
+
+---
+
+# 3. Technology research for the KMP port (web search, 2026-10-15)
+
+This is current-state research, not training-data recall — version numbers in
+particular should be re-checked against Maven Central / GitHub Releases at
+implementation time, since the ecosystem was mid-upgrade at the time of
+writing. Everything below is scoped to **Android + iOS only**, per the ground
+rules; Linux/Windows/JS/Wasm findings are noted only where they bled into the
+same release.
+
+## 3.1 supabase-kt — auth + session persistence on Android and iOS
+
+**Maintained, active, mid-major-version.** Group id
+`io.github.jan-tennert.supabase` (ignore `io.github.ferhatwi` hits in search —
+that's an unrelated fork/squat, not the project used by `supabase-kt` docs).
+
+- **Version line:** 3.x is current. **3.0.0** was the big migration: moved to
+  **Ktor 3** (so the app's Ktor version must be ≥ 3.0.0-rc-1, and Ktor 2 is
+  incompatible), renamed the `gotrue-kt` module to **`auth-kt`**, and added
+  `wasmJs` targets. **3.2.1** split plugins (e.g. Compose Auth) out into a
+  separate repo — don't expect them in the main `supabase-kt` repo anymore —
+  and bumped Ktor to 3.2.1 and `kotlinx-datetime` to 0.7.1. Search snapshots
+  place the newest stable tag somewhere in the **3.7.x–3.8.x** range as of this
+  research; **confirm the exact current version against
+  `github.com/supabase-community/supabase-kt/releases` or Maven Central before
+  pinning it** — don't hand-copy a version number from this file.
+- **Dependency shape:** pull in via the BOM, then
+  `implementation("io.github.jan-tennert.supabase:auth-kt")` (+ `postgrest-kt`,
+  `functions-kt` for this app's needs). Needs a Ktor HTTP engine per platform
+  (e.g. OkHttp on Android, Darwin on iOS) added by the app, same as any
+  Ktor-based client.
+- **Platform support (Android + iOS):** both are in the **fully-supported**
+  tier, including persistent session storage and the built-in OAuth deep-link
+  helpers. (Linux has no persistent session storage and is a separate concern
+  — not relevant here.)
+- **Session persistence model — direct analog to §1.7:** there's a
+  `SessionManager` interface; the default implementation is
+  `SettingsSessionManager`, backed by **multiplatform-settings**
+  (russhwolf/multiplatform-settings), which on Android resolves to
+  `SharedPreferences` and on iOS to `NSUserDefaults`. **This is the same
+  security posture as the Flutter app's `SharedPreferencesLocalStorage`** —
+  plaintext, not Keychain/EncryptedSharedPreferences by default. Parity with
+  Flutter needs no extra work; if the port wants to *improve* on Flutter here,
+  swap in a custom `SessionManager`/`Settings` impl backed by Android
+  `EncryptedSharedPreferences` or DataStore+Tink and iOS Keychain — optional,
+  not required for parity. (2.4.0 also changed the default storage key scheme
+  so multiple `SessionManager` instances on one device don't collide, and added
+  a constructor `key` param — only relevant if this app ever needs two Supabase
+  clients side by side, which it doesn't.)
+- **Startup behavior:** functionally the same shape as `supabase_flutter` —
+  session is loaded from storage and a local "has a session" check happens
+  before any network call; a real `refreshSession()` happens lazily after. The
+  stream-of-auth-events pattern in §1.2/§1.7 (one initial emission at startup,
+  then `onAuthStateChange`) maps directly to `auth.sessionStatus` /
+  `auth.events` (naming has moved around between 2.x and 3.x — one 3.2.0 note
+  mentions "a new event system for auth" exposed as a flow — check the
+  `auth-kt` README for the exact current flow name before coding).
+- **OAuth deep links — directly relevant to the §1.6/§2.8 gap:** supabase-kt
+  exposes `auth.parseSessionFromUrl(url)` / `parseSessionFromFragment(fragment)`
+  plus `auth.importSession(session)`, i.e. the SDK expects *the app* to own the
+  platform deep-link registration (Android App Link / intent-filter, iOS
+  Associated Domains or custom `CFBundleURLTypes` scheme) and hand the
+  resulting URL to the SDK — there's no magic auto-registration the way
+  `supabase_flutter`'s bundled `app_links` package tries to do. This confirms
+  decision work still needed: register a real scheme/App Link on both
+  platforms, add it to Supabase's redirect allow-list (§2.8), and wire it to
+  `importSession`.
+
+## 3.2 State management for Compose Multiplatform, replacing Riverpod
+
+**There is no drop-in Riverpod equivalent** — Riverpod is Dart/Flutter-only.
+The ecosystem question is really "what plays the role of
+`StreamNotifierProvider`/`AsyncNotifierProvider` in Kotlin/Compose,” and there
+are three live answers, all actively maintained as of this research:
+
+1. **AndroidX Lifecycle `ViewModel` (multiplatform), group
+   `org.jetbrains.androidx.lifecycle` for the Compose Multiplatform build** —
+   the "official, Google-aligned" option, and the closest conceptual match to
+   this app's three Riverpod providers: one `ViewModel` exposing `StateFlow`,
+   collected in Compose via `collectAsStateWithLifecycle`.
+   - Status has been moving fast: JetBrains' own docs (last touched mid-2025)
+     still flagged the common `ViewModel` as **Experimental** and noted
+     non-JVM targets can't use the no-arg `viewModel()` helper (needs an
+     explicit initializer). Upstream AndroidX Lifecycle **2.11.0** (released
+     **2026-06-17**) is the first release stating ViewModel-Compose and
+     ViewModel-Navigation3 **support all Kotlin Multiplatform targets** —
+     i.e. the iOS story firmed up only recently. A 2.12.0-alpha line was
+     already visible in the same search pass, so this is still moving;
+     **re-check the current stability annotation before committing to it**,
+     though for Android+iOS specifically (vs. wasm/JS) this has been
+     workable for longer than the "all targets" headline suggests.
+   - For this app's size (3 screens, 3 providers), this is the
+     lowest-ceremony choice: one `ViewModel` per Riverpod provider
+     (`AuthViewModel`, `MetadataViewModel`), `StateFlow<T>` instead of
+     `AsyncValue<T>`, manual `sealed class UiState { Loading; Data; Error }`
+     instead of `AsyncValue.when`.
+2. **Decompose** (Arkadii Ivanov's fork — the original `badoo/Decompose` is
+   **archived/unmaintained**; use `com.arkivanov.decompose`, not the badoo
+   coordinates). Actively released (3.5.0 seen dated 2026-03-15 in this
+   search). Goes further than a ViewModel replacement: it bundles
+   `InstanceKeeper` (ViewModel-equivalent retained state),
+   `StateKeeper` (process-death state saving), and a component-based
+   navigation model — i.e. it would also replace the go_router role from §1.6,
+   not just Riverpod. Worth considering only if the port wants unified
+   nav+state; likely overkill for a 3-screen app.
+3. **Molecule** (Cash App). Reached a stable multiplatform 1.0, now on a 2.x
+   runtime (`molecule-runtime`), JVM/JS/Native. Lets you write a "presenter"
+   as a `@Composable` function that reads events and emits a state object,
+   compiled by the Compose compiler plugin into a `StateFlow`/`Flow` — no
+   custom Gradle plugin needed since 2.0.0 (uses JetBrains' Compose compiler
+   plugin directly). It's narrower than Decompose: no navigation, no
+   lifecycle scoping — just the state-stream mechanism. Pairs well *with*
+   plain `ViewModel`s rather than replacing them outright.
+
+**For this specific port:** plain multiplatform `ViewModel` + `StateFlow`
+(option 1) is the closest like-for-like replacement for the three Riverpod
+providers and adds the least new surface area. Decompose only earns its
+weight if the routing layer (go_router replacement) is designed alongside it;
+Molecule is a nice-to-have for the async-state-merging pattern in
+`metadata_notifier.dart` (concurrent `getUserDetails()` + `getSubscription()`)
+but not a requirement. Re-verify the `ViewModel` multiplatform stability
+annotation at the Kotlin/Compose version actually pinned in `kmp/`, since it
+was still marked experimental in some docs seen during this research even as
+the underlying library matured.
+
+Sources consulted (via web search, not re-fetched/archived here): GitHub
+`supabase-community/supabase-kt` releases and compare pages, Maven Central /
+`klibs.io` listings for `auth-kt` and `supabase-kt`, the Supabase Kotlin
+reference docs, AndroidX Lifecycle release notes (2.11.0), JetBrains'
+Kotlin Multiplatform "Compose ViewModel" doc, `arkivanov/Decompose` releases,
+and `cashapp/molecule` release notes / blog posts.
+
+---
+
+# 4. Architecture decisions
+
+Each record: what was chosen, what was rejected and why, and the condition
+that would flip the decision later. These resolve the `D-00x` forward
+references scattered through §1–§3. No code here — decisions only.
+
+## D-001 — State management: multiplatform `ViewModel` + `StateFlow`
+
+**Chosen:** one AndroidX multiplatform `ViewModel` per Riverpod provider
+(`AuthViewModel` for `authProvider`, `MetadataViewModel` for
+`metadataProvider`), each exposing a `StateFlow` collected in Compose via
+`collectAsStateWithLifecycle`. A hand-written sealed result type plays the
+role of `AsyncValue<T>`.
+
+**Rejected:**
+- **Decompose** — bundles navigation, `InstanceKeeper`/`StateKeeper`, and a
+  component tree on top of state management. Capable, but this app has 3
+  screens and 3 providers; adopting Decompose's component model everywhere
+  to get its state story is more surface area than the problem needs.
+- **Molecule** — elegant for the concurrent-fetch merge in
+  `metadata_notifier.dart` (`(getUserDetails(), getSubscription()).wait`),
+  but it has no opinion on lifecycle scoping or navigation, so it would still
+  need a `ViewModel` (or equivalent) wrapped around it. Net new dependency
+  for a pattern `combine`/a coroutine `async {}` block already covers.
+- **Hand-rolled `StateFlow` in a plain class** — no lifecycle-awareness
+  (cancellation on scope end, `collectAsStateWithLifecycle` integration)
+  without reimplementing what `ViewModel` already gives for free.
+
+**Why:** `ViewModel` is the closest conceptual match to
+`StreamNotifierProvider`/`AsyncNotifierProvider` (§1.2), is the
+"official"/Google-aligned option, and every other candidate adds capability
+(navigation, presenter composition) this port doesn't need yet. Keeping
+state management minimal also keeps D-007 (routing) and D-002 (auth gate)
+decoupled from it, instead of locked into one framework's opinions on all
+three.
+
+**Reverses if:** the app grows past a handful of screens and needs
+cross-screen back-stack state retention or a formal component tree — at that
+point Decompose's bundled nav+state pays for itself and this decision and
+D-007 would be revisited together, not separately. Also reverses if the
+multiplatform `ViewModel`'s Experimental status (§3.2) regresses or its iOS
+support turns out thinner in practice than the 2.11.0 release notes claim —
+fallback would be Molecule-backed presenters, since they don't depend on the
+`ViewModelStoreOwner` multiplatform story at all.
+
+## D-002 — Auth-driven navigation: single derived auth-gate state, not raw `Session?`
+
+**Chosen:** collapse the `Session?` stream from `AuthViewModel` into a small
+derived state — `Unknown` (startup, still restoring) / `LoggedOut` /
+`LoggedIn` — with `distinctUntilChanged()` semantics, and only navigate
+imperatively on a transition between those three values. Silent token
+refreshes (hourly, §1.7) update the session object inside `LoggedIn` without
+emitting a new auth-gate value and without touching navigation.
+
+**Rejected:** porting the Flutter design as-is — a `GoRouter` instance that
+is fully rebuilt on *every* `authProvider` emission, including token
+refreshes, propped up only by a shared `navigatorKey` global to stop the
+widget tree from being discarded (§1.6). It works in Flutter by accident of
+how `navigatorKey` papers over the rebuild; there's no equivalent accidental
+safety net in a Compose Multiplatform nav graph, and deliberately rebuilding
+the graph hourly has no upside here.
+
+**Why:** the hourly `tokenRefreshed` event doesn't change *what screen the
+user should be on* — it only changes the session payload. Separating "is the
+user logged in" from "what is the current session object" removes the
+rebuild-on-refresh bug class at the root instead of working around it per
+screen. This also makes `MetadataViewModel`'s refetch trigger (§1.2: refetch
+on login/logout/refresh) independently tunable from navigation, instead of
+both being driven by the same raw stream emission.
+
+**Reverses if:** a future requirement needs navigation to react to
+*something inside* the session object changing while logged in (e.g.
+force-navigating on a specific claim change) — then the auth-gate enum needs
+a fourth case or a parallel signal, rather than silently folding it back into
+"any session emission triggers navigation."
+
+## D-003 — Mobile deep links: custom URL scheme, not App Links / Universal Links
+
+**Chosen:** register a single custom URL scheme (e.g.
+`com.devtodollars.app://login-callback`) on both Android (intent-filter) and
+iOS (`CFBundleURLTypes`), and add it to the Supabase redirect allow-list
+(§2.8) for OAuth, email confirmation, and the `/reset` deep link.
+
+**Rejected:** Android App Links / iOS Universal Links (HTTPS-based deep
+links verified via `assetlinks.json` / `apple-app-site-association` hosted
+on a real domain). These are the more "correct" mobile answer and avoid the
+classic custom-scheme risk — another installed app registering the same
+scheme and intercepting the redirect — but that risk is specifically what
+PKCE exists to close, and PKCE is already the Supabase client default
+(§1.7), not something this port has to add. Given that, paying the setup
+cost (hosting and maintaining the verification file on the marketing
+domain, keeping it in sync with app signing) buys little beyond what PKCE
+already buys.
+
+**Why:** lowest implementation cost that still closes the actual attack this
+port cares about, and it's the pattern Supabase's own docs assume
+(`parseSessionFromUrl`/`importSession`, §3.1) without extra plumbing.
+
+**Reverses if:** the team stands up the marketing domain changes anyway for
+other reasons (e.g. SEO, universal-link-based sharing), or a security review
+flags custom-scheme interception as unacceptable even under PKCE — then
+switch to App Links/Universal Links, which only changes how the OS routes
+the redirect to the app, not anything downstream of `importSession`.
+
+## D-004 — Detecting a completed subscription after returning from Stripe
+
+**Chosen:** on returning from Stripe (via the D-003 deep link, or the app
+coming back to the foreground during a pending checkout), poll
+`subscriptions` with backoff (e.g. every ~2s for ~30s) rather than trusting
+a single re-query, since the webhook write is asynchronous (§2.6).
+
+**Rejected:**
+- **Realtime subscription** on the `subscriptions` table — not available
+  without a backend change; the table isn't in the `supabase_realtime`
+  publication (§2.6), and the ground rules treat the backend as fixed except
+  for the §2.8 redirect allow-list.
+- **Relying on cold start**, i.e. the Flutter app's actual (accidental)
+  mechanism: the webhook typically finishes before a *web* page reload, but
+  on mobile the app is rarely killed between leaving for Stripe and
+  returning, so there is no cold start to trigger a re-query at all. This is
+  the gap called out in §1.4 — it must be fixed, not ported.
+
+**Why:** polling is the only option left once realtime and cold-start-reload
+are both off the table, and a short bounded backoff window matches how fast
+the `stripe_webhook` function actually resolves in practice rather than
+either a single too-early check or unbounded polling.
+
+**Reverses if:** the backend ground rules ever relax enough to add
+`subscriptions` to the realtime publication (a one-line migration change,
+but still a backend change today's ground rules exclude) — then the poll
+loop can be replaced with a realtime listener plus a short initial grace
+period for the same async-webhook reason.
+
+## D-005 — How Stripe Checkout / Billing Portal is presented on mobile
+
+**Chosen:** open the Stripe URL in an in-app browser tab (iOS
+`ASWebAuthenticationSession` / Android Custom Tabs, or a cross-platform
+library wrapping both), passing the D-003 custom scheme as `return_url`, so
+the browser session closes itself and hands control back to the app the
+moment Stripe redirects.
+
+**Rejected:** launching the system browser and sending no `return_url` on
+mobile, which is what the Flutter app actually does today (§1.4: `return_url
+== null` on non-web). That leaves the user stranded in Safari/Chrome with no
+way back into the app and nothing to trigger D-004's poll — it isn't a
+design, it's the absence of one, and porting it unchanged would keep the
+exact gap §1.4 flags as a must-fix.
+
+**Why:** an in-app browser tab keeps the user inside the app's navigation
+context and guarantees the `return_url` redirect actually reaches the app
+(via D-003) so D-004's poll has something to trigger it, while still using
+Stripe's hosted Checkout/portal pages unchanged (§2.5) — no Stripe mobile
+SDK, no backend change.
+
+**Reverses if:** Stripe ships a dedicated mobile SDK integration this
+project later adopts (ground rules currently keep Stripe backend/flow fixed,
+so this would be a scope change, not just an implementation detail) — then
+the in-app browser tab and D-003's deep link return would both be replaced
+by native SDK callbacks.
+
+## D-006 — Session storage security posture: default `SettingsSessionManager`
+
+**Chosen:** use supabase-kt's default `SettingsSessionManager`
+(multiplatform-settings → Android `SharedPreferences`, iOS
+`NSUserDefaults`), unmodified, for v1.
+
+**Rejected:** a custom `SessionManager` backed by Android
+`EncryptedSharedPreferences`/DataStore+Tink and iOS Keychain. Strictly
+better security, but it's net-new work with no parity requirement behind
+it — the Flutter app's actual current behavior (§1.7) is the same plaintext
+`SharedPreferencesLocalStorage`/`NSUserDefaults` storage, so shipping the
+default is not a regression against what's live today.
+
+**Why:** matches the existing app's real security posture exactly (not an
+upgrade, not a downgrade), and defers genuinely new security work to a
+moment when it's driven by an actual requirement rather than done
+speculatively during a straight port.
+
+**Reverses if:** a security review or compliance requirement (e.g. before a
+larger launch, or a specific customer ask) calls for encrypted-at-rest
+session tokens — then swap in a custom `SessionManager`/`Settings`
+implementation; supabase-kt's `SessionManager` interface (§3.1) is built to
+be replaced without touching call sites elsewhere in the app.
+
+## D-007 — Navigation/routing library: Compose Multiplatform Navigation
+
+**Chosen:** `androidx.navigation` multiplatform (the Compose Multiplatform
+Navigation library) as the `go_router` replacement, with the route table
+from §1.6 (`/login`, `/`, `/reset`, `/payments`) ported 1:1 and the auth
+redirect logic implemented as the D-002 auth-gate, not as a per-navigation
+guard re-evaluated on every recomposition.
+
+**Rejected:** Decompose's own navigation model. Decompose is a real,
+actively maintained option (§3.2) and would give StateKeeper-based
+process-death survival for free, but adopting it *only* for routing while
+using plain `ViewModel`s for state (D-001) splits the app across two
+different component philosophies for no benefit — if Decompose is ever
+adopted it should be for both state and nav together (see D-001's reversal
+condition), not one at a time.
+
+**Why:** keeps the navigation layer and the state-management layer (D-001)
+independent and each swappable on its own, which matches this app's small
+size better than committing to a single framework that wants to own both.
+
+**Reverses if:** D-001 reverses to Decompose — the two decisions are linked
+in practice even though recorded separately, because splitting them was the
+explicit reason to reject Decompose here.
+
+## D-008 — OAuth sign-in mechanism: native SDK for Google/Apple, browser redirect for GitHub
+
+**Chosen:** use native sign-in SDKs where one exists —
+Google Sign-In (`signInWithIdToken`) on both platforms, and natively-presented
+Sign in with Apple on iOS (new: the Flutter app never configured Apple,
+§2.2) — and fall back to the browser-redirect `signInWithOAuth` flow (D-003
+deep link return) only for GitHub, which has no native mobile SDK.
+
+**Rejected:** porting the Flutter app's actual behavior as-is — browser-
+redirect for every provider via `supabase_auth_ui`'s `SupaSocialsAuth`,
+with the native `signInWithIdToken` branch never reached because
+`googleAuthConfig`/`nativeAppleAuthEnabled` are never passed (§1.3). That's
+a straight port, but it carries over worse mobile UX for Google (a full
+browser hand-off instead of the native account picker) and leaves the iOS
+App Store Guideline 4.8 exposure open — the app offers third-party social
+login (Google, GitHub) with no Apple-equivalent, which Apple review can
+reject (noted as a risk in §2.2, never resolved in the Flutter app).
+
+**Why:** native SDKs are strictly better UX where available, and adding
+Sign in with Apple is the direct fix for the Guideline 4.8 exposure rather
+than something to discover during App Store review. GitHub has no native
+mobile SDK, so it has no native path to choose — it keeps using the same
+browser-redirect machinery D-003/D-005 already built for Stripe, rather than
+inventing a second redirect mechanism.
+
+**Reverses if:** native SDK integration (Google Sign-In client config,
+Apple's entitlements/capability setup) turns out too costly for a v1
+timeline — then fall back to browser-redirect for all three providers (the
+Flutter-parity option above) and accept both the UX gap and the open
+Guideline 4.8 risk as a known, explicitly deferred tradeoff rather than an
+oversight.
