@@ -6,6 +6,7 @@ import com.mejdi14.kmpstartupmvp.data.SessionSettingsFactory
 import com.mejdi14.kmpstartupmvp.data.SupabaseRepository
 import com.mejdi14.kmpstartupmvp.data.createAppSupabaseClient
 import com.mejdi14.kmpstartupmvp.metadata.MetadataStore
+import com.mejdi14.kmpstartupmvp.payments.PaymentsStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,4 +24,9 @@ class KmpApplication : Application() {
 
     /** The `Metadata` provider; follows [authStore]'s session. */
     val metadataStore: MetadataStore by lazy { MetadataStore(repository, authStore.state, appScope) }
+
+    /** Stripe Checkout/portal link + post-return subscription polling (D-004). */
+    val paymentsStore: PaymentsStore by lazy {
+        PaymentsStore(repository, repository, authStore.state, appScope, onSubscriptionChanged = { metadataStore.refresh() })
+    }
 }

@@ -19,14 +19,29 @@ import com.mejdi14.kmpstartupmvp.metadata.UserMetadata
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
+import com.mejdi14.kmpstartupmvp.payments.PaymentsRepository
+import com.mejdi14.kmpstartupmvp.payments.StripeException
+import io.github.jan.supabase.exceptions.RestException
+import io.github.jan.supabase.functions.functions
+import io.ktor.client.call.body
+import io.ktor.client.statement.bodyAsText
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 
 /**
  * Thin wrapper over the SDK so stores never touch it directly.
  */
-class SupabaseRepository(val client: SupabaseClient) : AuthRepository, MetadataRepository {
+class SupabaseRepository(val client: SupabaseClient) : AuthRepository, MetadataRepository, PaymentsRepository {
     /**
      * Maps SDK status to [AuthStatus]. A refresh failure keeps the stored session
      * (the SDK retries), so it is dropped rather than treated as a sign-out.
@@ -116,4 +131,34 @@ class SupabaseRepository(val client: SupabaseClient) : AuthRepository, MetadataR
     /** Unauthenticated read of the public `products` table (PORTING.md §2.1). */
     suspend fun fetchProductsRaw(): String =
         client.from("products").select().data
+
+    override suspend fun getStripeUrl(price: String?, returnUrl: String): String {
+        val response = try {
+            // Body shape is fixed by §2.3: `price` (not price_id) and `return_url`; null price → portal.
+            client.functions.invoke("get_stripe_url", buildJsonObject {
+                if (price != null) put("price", price)
+                put("return_url", returnUrl)
+            })
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: RestException) {
+            // Every failure is a 400 `{"message": ...}` (§2.3).
+            throw StripeException(serverMessage(e.description.orEmpty()) ?: "Error retrieving stripe redirect url", e)
+        } catch (e: Exception) {
+            throw StripeException(e.message ?: "Error retrieving stripe redirect url", e)
+        }
+        val url = try {
+            response.body<StripeUrlResponse>().redirectUrl
+        } catch (e: Exception) {
+            null
+        }
+        return url?.takeIf { it.isNotBlank() } ?: throw StripeException("Error retrieving stripe redirect url")
+    }
+
+    private fun serverMessage(body: String): String? = runCatching {
+        Json.parseToJsonElement(body).jsonObject["message"]?.jsonPrimitive?.contentOrNull
+    }.getOrNull() ?: body.takeIf { it.isNotBlank() }
 }
+
+@Serializable
+private data class StripeUrlResponse(@SerialName("redirect_url") val redirectUrl: String? = null)

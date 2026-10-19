@@ -11,6 +11,13 @@ object Routes {
     const val ACCOUNT = "account"
     const val PAYMENTS = "payments"
 
+    /** Nav pattern for Payments; `price` is optional (absent → billing portal). */
+    const val PAYMENTS_PATTERN = "$PAYMENTS?price={price}"
+    const val PRICE_ARG = "price"
+
+    fun payments(price: String?): String =
+        if (price.isNullOrBlank()) PAYMENTS else "$PAYMENTS?price=${price.trim()}"
+
     /** Where the D-002 auth gate sends the user. */
     fun forGate(gate: AuthGate): String = when (gate) {
         AuthGate.Unknown -> LOADING

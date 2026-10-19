@@ -11,4 +11,11 @@ class RoutesTest {
         assertEquals(Routes.LOGIN, Routes.forGate(AuthGate.LoggedOut))
         assertEquals(Routes.HOME, Routes.forGate(AuthGate.LoggedIn))
     }
+
+    @Test
+    fun paymentsRouteCarriesOptionalPrice() {
+        assertEquals("payments", Routes.payments(null))
+        assertEquals("payments", Routes.payments(" "))
+        assertEquals("payments?price=price_1", Routes.payments("price_1"))
+    }
 }

@@ -12,6 +12,12 @@ object DeepLinks {
     /** `redirect_to` for password-recovery emails; must be in the §2.8 allow-list. */
     const val RESET_REDIRECT_URL = "$BASE_URL/reset"
 
+    /** Stripe `return_url` (D-005): Checkout success/cancel and billing-portal return all land here (§2.8). */
+    const val STRIPE_RETURN_URL = "$BASE_URL/stripe-return"
+
+    /** Deep link that opens Checkout for a price, e.g. `$BASE_URL/payments?price=price_XXX` (task 11). */
+    fun paymentsUrl(price: String): String = "$BASE_URL/payments?price=$price"
+
     /** Classifies an incoming URL; null when it is not one of ours. */
     fun parse(url: String): DeepLink? {
         val prefix = "$SCHEME://$HOST"
@@ -36,6 +42,8 @@ object DeepLinks {
             val code = params["code"]?.takeIf { it.isNotEmpty() } ?: return null
             return DeepLink.OAuthCallback(code)
         }
+        if (route == "/stripe-return") return DeepLink.StripeReturn
+        if (route == "/payments") return DeepLink.OpenPayments(params["price"]?.takeIf { it.isNotEmpty() })
         if (route != "/reset") return null
         params["error_description"]?.let { return DeepLink.LinkError(it) }
         params["error"]?.let { return DeepLink.LinkError(it) }
@@ -73,6 +81,12 @@ sealed interface DeepLink {
 
     /** OAuth redirect (GitHub) carrying a PKCE auth [code] to exchange for a session. */
     data class OAuthCallback(val code: String) : DeepLink
+
+    /** Stripe handed control back (success, cancel or portal exit); the outcome is learned by polling (D-004). */
+    data object StripeReturn : DeepLink
+
+    /** Request to open Payments: Checkout for [price], or the billing portal when null. */
+    data class OpenPayments(val price: String?) : DeepLink
 
     /** Link GoTrue rejected (e.g. expired). */
     data class LinkError(val message: String) : DeepLink

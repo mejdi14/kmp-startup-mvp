@@ -76,6 +76,8 @@ class AuthStore(
                 _pendingPasswordReset.value = true
             }
             is DeepLink.OAuthCallback -> repository.exchangeCodeForSession(link.code)
+            // Payments links are routed by the PaymentsStore, not auth.
+            DeepLink.StripeReturn, is DeepLink.OpenPayments -> Unit
             is DeepLink.LinkError -> throw IllegalStateException(link.message)
             null -> Unit
         }

@@ -44,6 +44,13 @@ class DeepLinkTest {
         assertNull(DeepLinks.parse("https://example.com/reset?code=1"))
         assertNull(DeepLinks.parse("com.devtodollars.app://other/reset?code=1"))
         assertNull(DeepLinks.parse("com.devtodollars.app://login-callbackx/reset?code=1"))
-        assertNull(DeepLinks.parse("com.devtodollars.app://login-callback/payments?price=p1"))
+        assertNull(DeepLinks.parse("com.devtodollars.app://login-callback/unknown?price=p1"))
+    }
+
+    @Test
+    fun parsesPaymentsLinks() {
+        assertEquals(DeepLink.StripeReturn, DeepLinks.parse(DeepLinks.STRIPE_RETURN_URL))
+        assertEquals(DeepLink.OpenPayments("price_1"), DeepLinks.parse(DeepLinks.paymentsUrl("price_1")))
+        assertEquals(DeepLink.OpenPayments(null), DeepLinks.parse("${DeepLinks.BASE_URL}/payments"))
     }
 }

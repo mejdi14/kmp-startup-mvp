@@ -1,18 +1,18 @@
 package com.mejdi14.kmpstartupmvp.nav
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.dialog
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.mejdi14.kmpstartupmvp.PaymentsViewModel
+import com.mejdi14.kmpstartupmvp.payments.PaymentsScreen
 import com.mejdi14.kmpstartupmvp.AuthViewModel
 import com.mejdi14.kmpstartupmvp.auth.AuthGate
 import com.mejdi14.kmpstartupmvp.MetadataViewModel
@@ -28,7 +28,12 @@ import com.mejdi14.kmpstartupmvp.ui.components.LoadingIndicator
  * but never change the gate, so nothing here reacts to them (§1.6 bug not ported).
  */
 @Composable
-fun AppNavHost(authViewModel: AuthViewModel, metadataViewModel: MetadataViewModel, modifier: Modifier = Modifier) {
+fun AppNavHost(
+    authViewModel: AuthViewModel,
+    metadataViewModel: MetadataViewModel,
+    paymentsViewModel: PaymentsViewModel,
+    modifier: Modifier = Modifier,
+) {
     val navController = rememberNavController()
     val gate by authViewModel.authGate.collectAsState()
     val pendingReset by authViewModel.pendingPasswordReset.collectAsState()
@@ -61,6 +66,16 @@ fun AppNavHost(authViewModel: AuthViewModel, metadataViewModel: MetadataViewMode
         }
     }
 
+    // Payments deep link (`…/payments?price=`): held until signed in, like Flutter's surviving initUrl.
+    val paymentRequest by paymentsViewModel.pendingRequest.collectAsState()
+    LaunchedEffect(gate, paymentRequest) {
+        val request = paymentRequest
+        if (gate == AuthGate.LoggedIn && request != null) {
+            paymentsViewModel.consumeRequest()
+            navController.navigate(Routes.payments(request.price)) { launchSingleTop = true }
+        }
+    }
+
     NavHost(navController = navController, startDestination = Routes.forGate(gate), modifier = modifier) {
         composable(Routes.LOADING) { LoadingIndicator() }
         composable(Routes.LOGIN) { AuthScreen(authViewModel) }
@@ -68,7 +83,7 @@ fun AppNavHost(authViewModel: AuthViewModel, metadataViewModel: MetadataViewMode
             HomeScreen(
                 authViewModel = authViewModel,
                 metadataViewModel = metadataViewModel,
-                onOpenPayments = { navController.navigate(Routes.PAYMENTS) },
+                onOpenPayments = { navController.navigate(Routes.payments(null)) },
                 onOpenAccount = { navController.navigate(Routes.ACCOUNT) },
             )
         }
@@ -85,12 +100,20 @@ fun AppNavHost(authViewModel: AuthViewModel, metadataViewModel: MetadataViewMode
                 },
             )
         }
-        // Task 11 (payments, ?price=) fills this in.
-        composable(Routes.PAYMENTS) { PlaceholderScreen("Payments") }
+        composable(
+            Routes.PAYMENTS_PATTERN,
+            arguments = listOf(navArgument(Routes.PRICE_ARG) { type = NavType.StringType; nullable = true }),
+        ) { entry ->
+            PaymentsScreen(
+                price = entry.arguments?.getString(Routes.PRICE_ARG),
+                viewModel = paymentsViewModel,
+                onDone = {
+                    navController.navigate(Routes.HOME) {
+                        popUpTo(navController.graph.id) { inclusive = true }
+                        launchSingleTop = true
+                    }
+                },
+            )
+        }
     }
-}
-
-@Composable
-private fun PlaceholderScreen(title: String) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(title) }
 }

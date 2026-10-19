@@ -10,6 +10,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.mejdi14.kmpstartupmvp.auth.DeepLink
+import com.mejdi14.kmpstartupmvp.auth.DeepLinks
 import com.mejdi14.kmpstartupmvp.nav.AppNavHost
 import com.mejdi14.kmpstartupmvp.ui.theme.AppTheme
 import kotlinx.coroutines.launch
@@ -36,6 +38,11 @@ class MainActivity : ComponentActivity() {
     private fun handleDeepLink(intent: Intent?) {
         val url = intent?.takeIf { it.action == Intent.ACTION_VIEW }?.dataString ?: return
         val app = applicationContext as KmpApplication
+        when (val link = DeepLinks.parse(url)) {
+            DeepLink.StripeReturn -> { app.paymentsStore.onReturned(); return }
+            is DeepLink.OpenPayments -> { app.paymentsStore.requestPayments(link.price); return }
+            else -> Unit
+        }
         lifecycleScope.launch {
             runCatching { app.authStore.handleDeepLink(url) }
                 .onFailure { Log.w("DeepLink", "Deep link rejected: ${it.message}") }
@@ -50,6 +57,8 @@ fun App() {
         val authViewModel: AuthViewModel = viewModel(factory = AuthViewModel.factory(app.authStore))
         val metadataViewModel: MetadataViewModel =
             viewModel(factory = MetadataViewModel.factory(app.metadataStore))
-        AppNavHost(authViewModel, metadataViewModel)
+        val paymentsViewModel: PaymentsViewModel =
+            viewModel(factory = PaymentsViewModel.factory(app.paymentsStore))
+        AppNavHost(authViewModel, metadataViewModel, paymentsViewModel)
     }
 }
