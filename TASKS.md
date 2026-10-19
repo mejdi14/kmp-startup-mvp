@@ -176,6 +176,14 @@ user can sign in; validation errors match the Flutter rules above. Screens
 render and are directly launchable for manual verification even though
 they're not yet reachable through real app navigation — task 5 wires that.
 
+**Status:** code written and compiled (`./gradlew :androidApp:assembleDebug`);
+validation rules unit-tested (`:androidApp:testDebugUnitTest`). **Pending
+(runtime/manual, not run):** sign-up → check-your-email state, sign-in with a
+confirmed user, and visual check of validation errors against local Supabase.
+`AuthScreen` is currently the sole nav destination in `MainActivity`; task 5
+replaces that with the real graph. Sign-up success flips the form to login and
+shows the dialog (as in Flutter); "Ok Matt." became "Ok".
+
 **Depends on:** Task 3.
 
 ---

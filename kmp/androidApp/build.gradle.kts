@@ -17,10 +17,13 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.lifecycle.viewmodel)
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.compose.ui)
     implementation(libs.compose.material3)
     implementation(libs.compose.uiToolingPreview)
     debugImplementation(libs.compose.uiTooling)
+
+    testImplementation(libs.kotlin.testJunit)
 }
 
 android {
