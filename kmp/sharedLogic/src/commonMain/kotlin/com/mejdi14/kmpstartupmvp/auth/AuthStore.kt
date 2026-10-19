@@ -53,15 +53,22 @@ class AuthStore(
         }
     }
 
+    // @Throws is what makes a Kotlin exception cross into Swift as an NSError. Without it the
+    // ObjC export treats any non-CancellationException as fatal and aborts the process, so a
+    // wrong password or an offline device would kill the iOS app instead of showing a message.
+    @Throws(Throwable::class)
     suspend fun signInWithPassword(email: String, password: String) =
         repository.signInWithPassword(email, password)
 
     /** Email confirmation is on (§2.8): this returns with no session; show "check your email". */
+    @Throws(Throwable::class)
     suspend fun signUp(email: String, password: String) = repository.signUp(email, password)
 
+    @Throws(Throwable::class)
     suspend fun recoverPassword(email: String, redirectUrl: String? = null) =
         repository.recoverPassword(email, redirectUrl)
 
+    @Throws(Throwable::class)
     suspend fun updatePassword(password: String) = repository.updatePassword(password)
 
     /**
@@ -69,6 +76,7 @@ class AuthStore(
      * session and raises [pendingPasswordReset]; a rejected link throws for the caller to surface.
      * Links that are not ours are ignored.
      */
+    @Throws(Throwable::class)
     suspend fun handleDeepLink(url: String) {
         when (val link = DeepLinks.parse(url)) {
             is DeepLink.PasswordReset -> {
@@ -88,12 +96,15 @@ class AuthStore(
     }
 
     /** Native Google/Apple sign-in; [nonce] is the raw nonce whose hash was sent to the provider. */
+    @Throws(Throwable::class)
     suspend fun signInWithIdToken(provider: IdTokenProvider, idToken: String, nonce: String? = null) =
         repository.signInWithIdToken(provider, idToken, nonce)
 
     /** Starts the GitHub browser flow; completion arrives through [handleDeepLink]. */
+    @Throws(Throwable::class)
     suspend fun signInWithGithub() =
         repository.signInWithOAuth(OAuthProvider.Github, DeepLinks.OAUTH_REDIRECT_URL)
 
+    @Throws(Throwable::class)
     suspend fun signOut() = repository.signOut()
 }
