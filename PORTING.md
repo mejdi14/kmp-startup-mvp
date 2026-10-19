@@ -1073,3 +1073,45 @@ timeline — then fall back to browser-redirect for all three providers (the
 Flutter-parity option above) and accept both the UX gap and the open
 Guideline 4.8 risk as a known, explicitly deferred tradeoff rather than an
 oversight.
+
+## D-009 — "Continue without login": Supabase anonymous session, not a session-less guest mode
+
+**Chosen:** back the "Continue without login" button with
+`auth.signInAnonymously()`. The guest gets a real Supabase user with a real
+JWT that simply has no email and no credentials. Everything downstream is
+untouched: `AuthGate.from` sees a non-null session and reports `LoggedIn`, the
+`on_auth_user_created` trigger inserts the guest's `public.users` row, and
+every `auth.uid() = id` RLS policy (§2.1) applies to the guest exactly as it
+does to a signed-in user. One repository method, one store method, one button
+per platform.
+
+**Rejected:** a client-side guest mode that bypasses the gate with no session
+at all. That requires a third `AuthGate` state, which contradicts D-002 — the
+gate exists precisely so navigation reacts to one derived signal — and it
+forces a guest branch into `Routes.forGate`, `AppNavHost`, `RootView`,
+`MetadataStore` and every screen that reads it. Worse, the degraded states are
+not cosmetic: with no JWT there is no `users` row, so Home cannot render
+subscription status, Account cannot load or save a profile, and
+`get_stripe_url` (§2.3) rejects the call outright, since it authenticates the
+caller by its bearer token. Guest mode would mean building empty states for
+three screens that already work.
+
+**Why:** the anonymous session is the option the existing architecture already
+accommodates, and the trigger plus `auth.uid()` RLS mean it needs no schema
+change whatsoever. It is also the only one of the two that can grow: Supabase
+can convert an anonymous user into a permanent one by setting an email and
+password on it, so "browse first, sign up later" stays open as a follow-up,
+whereas a session-less guest has nothing to convert.
+
+**Costs accepted:** `enable_anonymous_sign_ins` must be on — in
+`supabase/config.toml` for local (done) and in the hosted dashboard, or the
+button fails with "Anonymous sign-ins are disabled". Each guest is a row in
+`auth.users`, so abandoned guest accounts accumulate and are worth a periodic
+cleanup. And a guest who signs out is unrecoverable: there are no credentials
+to sign back in with, which is why the button is the least prominent action on
+the auth screen and carries a line of explanatory copy.
+
+**Reverses if:** guest rows prove unacceptable (abuse, or billing on
+`auth.users` volume) — then drop guest access rather than reimplement it
+session-lessly, because the degraded-screen work above is the real cost and it
+does not get cheaper later.

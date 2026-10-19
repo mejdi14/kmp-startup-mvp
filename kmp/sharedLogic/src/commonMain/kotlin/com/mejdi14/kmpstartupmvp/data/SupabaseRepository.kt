@@ -105,6 +105,10 @@ class SupabaseRepository(val client: SupabaseClient) : AuthRepository, MetadataR
         }
     }
 
+    override suspend fun signInAnonymously() {
+        client.auth.signInAnonymously()
+    }
+
     override suspend fun signOut() {
         client.auth.signOut()
     }

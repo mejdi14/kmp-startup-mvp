@@ -70,6 +70,10 @@ class MetadataStore(
      * Saves the profile then refetches so [state] reflects what the server stored.
      * Blank values are stored as null; input is checked by [ProfileValidation] first.
      */
+    // @Throws is what makes a Kotlin exception cross into Swift as an NSError. Without it the
+    // ObjC export treats any non-CancellationException as fatal and aborts the process, so a
+    // wrong password or an offline device would kill the iOS app instead of showing a message.
+    @Throws(Throwable::class)
     suspend fun updateProfile(fullName: String, avatarUrl: String) {
         repository.updateProfile(fullName.trim().ifEmpty { null }, avatarUrl.trim().ifEmpty { null })
         refresh()

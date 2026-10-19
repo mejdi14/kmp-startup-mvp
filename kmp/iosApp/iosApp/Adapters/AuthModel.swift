@@ -59,6 +59,11 @@ final class AuthModel: ObservableObject {
         try await store.signInWithGithub()
     }
 
+    /// "Continue without login" (D-009): anonymous session, so the auth gate navigates as usual.
+    func continueAsGuest() async throws {
+        try await store.continueAsGuest()
+    }
+
     func signOut() async throws { try await store.signOut() }
 
     func dismissPasswordReset() { store.dismissPasswordReset() }

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -24,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.credentials.exceptions.GetCredentialCancellationException
@@ -51,6 +53,7 @@ fun AuthScreen(viewModel: AuthViewModel, modifier: Modifier = Modifier) {
             SocialButtons(viewModel)
             Spacer(Modifier.height(24.dp))
             EmailForm(viewModel)
+            GuestButton(viewModel)
         }
     }
 }
@@ -76,6 +79,39 @@ private fun SocialButtons(viewModel: AuthViewModel) {
         })
         if (errorMessage.isNotEmpty()) ErrorText(errorMessage)
         Text("or continue with email", style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+/**
+ * Guest access (D-009). Deliberately the least prominent action on the screen: signing in
+ * is the path we want, and an anonymous session cannot be recovered after a sign-out.
+ */
+@Composable
+private fun GuestButton(viewModel: AuthViewModel) {
+    var errorMessage by rememberSaveable { mutableStateOf("") }
+    var loading by rememberSaveable { mutableStateOf(false) }
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        HorizontalDivider(Modifier.padding(vertical = 8.dp))
+        if (errorMessage.isNotEmpty()) ErrorText(errorMessage, Modifier.padding(bottom = 8.dp))
+        TextButton(
+            enabled = !loading,
+            onClick = {
+                errorMessage = ""
+                loading = true
+                viewModel.continueAsGuest { result ->
+                    loading = false
+                    // Success is the auth gate's job.
+                    result.onFailure { errorMessage = it.message ?: "Could not continue as guest" }
+                }
+            },
+        ) {
+            Text("Continue without login")
+        }
+        Text(
+            "You can browse as a guest. Your data is tied to this install only.",
+            style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 

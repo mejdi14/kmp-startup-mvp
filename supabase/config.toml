@@ -83,6 +83,10 @@ refresh_token_reuse_interval = 10
 enable_signup = true
 # Allow/disallow testing manual linking of accounts
 enable_manual_linking = false
+# Powers the "Continue without login" button (D-009). Enable the same setting in the hosted
+# dashboard (Authentication -> Sign In / Providers -> Anonymous sign-ins), or guest access
+# fails with "Anonymous sign-ins are disabled".
+enable_anonymous_sign_ins = true
 
 [auth.email]
 # Allow/disallow new user signups via email to your project.
