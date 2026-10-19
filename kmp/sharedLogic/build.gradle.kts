@@ -31,10 +31,25 @@ kotlin {
     
     sourceSets {
         commonMain.dependencies {
-            // put your Multiplatform dependencies here
+            api(project.dependencies.platform(libs.supabase.bom))
+            api(libs.supabase.auth)
+            api(libs.supabase.postgrest)
+            api(libs.supabase.functions)
+            implementation(libs.multiplatform.settings)
+            implementation(libs.kotlinx.coroutines.core)
+        }
+        androidMain.dependencies {
+            implementation(libs.ktor.client.okhttp)
+        }
+        iosMain.dependencies {
+            implementation(libs.ktor.client.darwin)
+        }
+        getByName("androidHostTest").dependencies {
+            implementation(libs.multiplatform.settings.test)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
         }
     }
 }
