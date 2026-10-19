@@ -1,0 +1,94 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: kmp
+
+jobs:
+  android:
+    name: Android build, tests, lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Shared logic: commonTest + androidHostTest (repository/store tests, no device).
+      # Android app: JVM unit tests under androidApp/src/test.
+      - name: Unit tests
+        run: ./gradlew :sharedLogic:allTests :androidApp:testDebugUnitTest --stacktrace
+
+      # Rough analog of Flutter's flutter_lints (PORTING.md §1.8).
+      - name: Android lint
+        run: ./gradlew :androidApp:lintDebug --stacktrace
+
+      - name: Assemble debug and release
+        run: ./gradlew :androidApp:assembleDebug :androidApp:assembleRelease --stacktrace
+
+      - name: Upload reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-reports
+          path: |
+            kmp/**/build/reports/
+            kmp/**/build/test-results/
+          if-no-files-found: ignore
+
+  ios:
+    name: iOS build (simulator)
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Kotlin/Native iOS tests (sharedLogic commonTest on the simulator target).
+      - name: iOS shared-logic tests
+        run: ./gradlew :sharedLogic:iosSimulatorArm64Test --stacktrace
+
+      # The Xcode "Compile Kotlin Framework" phase invokes Gradle itself.
+      - name: Build iosApp
+        run: |
+          xcodebuild build \
+            -project iosApp/iosApp.xcodeproj \
+            -scheme iosApp \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-reports
+          path: |
+            kmp/**/build/reports/
+            kmp/**/build/test-results/
+          if-no-files-found: ignore
