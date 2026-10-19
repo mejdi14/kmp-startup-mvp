@@ -12,3 +12,5 @@ See `../PORTING.md` (decisions) and `../TASKS.md` (build order).
 - Shared tests: `./gradlew :sharedLogic:testAndroidHostTest :sharedLogic:iosSimulatorArm64Test`
 - iOS app compile (no simulator launch): `xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build`
 - iOS pure-logic checks (host, no simulator): `iosApp/Checks/run.sh`
+
+See the repository-root `README.md` and `SETUP.md` for full setup.
