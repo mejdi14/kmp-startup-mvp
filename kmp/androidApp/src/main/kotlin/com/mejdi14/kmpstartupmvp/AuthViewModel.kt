@@ -37,6 +37,9 @@ class AuthViewModel(private val store: AuthStore) : ViewModel() {
     fun signUp(email: String, password: String, onResult: (Result<Unit>) -> Unit = {}) =
         run(onResult) { store.signUp(email, password) }
 
+    /** "Continue without login" (D-009): anonymous session, so the auth gate navigates as usual. */
+    fun continueAsGuest(onResult: (Result<Unit>) -> Unit = {}) = run(onResult) { store.continueAsGuest() }
+
     fun recoverPassword(email: String, onResult: (Result<Unit>) -> Unit = {}) =
         run(onResult) { store.recoverPassword(email, DeepLinks.RESET_REDIRECT_URL) }
 

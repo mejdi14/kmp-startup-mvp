@@ -17,5 +17,10 @@ interface AuthRepository {
     suspend fun signInWithIdToken(provider: IdTokenProvider, idToken: String, nonce: String? = null)
     /** Browser-redirect sign-in (D-008, GitHub): opens the provider page; the session returns via the D-003 deep link. */
     suspend fun signInWithOAuth(provider: OAuthProvider, redirectUrl: String)
+    /**
+     * Guest access (D-009): establishes a real but anonymous session, so the auth gate,
+     * the `users` row trigger and every `auth.uid()` RLS policy keep working unchanged.
+     */
+    suspend fun signInAnonymously()
     suspend fun signOut()
 }

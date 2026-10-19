@@ -13,6 +13,7 @@ struct AuthScreen: View {
             VStack(spacing: 24) {
                 SocialButtons(auth: auth)
                 EmailForm(auth: auth)
+                GuestButton(auth: auth)
             }
             .padding(16)
             .frame(maxWidth: 480)
@@ -77,6 +78,36 @@ private struct SocialButtons: View {
             do { try await block() }
             catch is SignInCancelled { /* dismissed picker */ }
             catch { errorMessage = error.userMessage }
+        }
+    }
+}
+
+/// Guest access (D-009). Deliberately the least prominent action on the screen: signing in
+/// is the path we want, and an anonymous session cannot be recovered after a sign-out.
+private struct GuestButton: View {
+    @ObservedObject var auth: AuthModel
+    @State private var errorMessage = ""
+    @State private var loading = false
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Divider()
+            if !errorMessage.isEmpty { ErrorText(errorMessage) }
+            Button("Continue without login") {
+                errorMessage = ""
+                loading = true
+                Task {
+                    // Success is the auth gate's job.
+                    do { try await auth.continueAsGuest() }
+                    catch { errorMessage = error.userMessage }
+                    loading = false
+                }
+            }
+            .disabled(loading)
+            Text("You can browse as a guest. Your data is tied to this install only.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
         }
     }
 }

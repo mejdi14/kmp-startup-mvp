@@ -69,7 +69,7 @@ Supabase rejects redirects that are not allow-listed, so add it in **both**:
 Email confirmation is on, so sign-up shows "check your email" instead of
 logging in. Locally, read the mail in Inbucket at http://localhost:54324.
 
-## 4. Social sign-in (optional)
+## 4. Social sign-in and guest access (optional)
 
 Without these, the buttons show a clear "not configured" error.
 
@@ -85,6 +85,26 @@ Without these, the buttons show a clear "not configured" error.
   GitHub OAuth app (`GITHUB_CLIENT_ID` / `GITHUB_SECRET` locally).
 - **Apple (iOS).** Enable the provider in Supabase and the *Sign in with Apple*
   capability for your App ID.
+
+### Guest access — "Continue without login"
+
+That button signs the user in **anonymously** (PORTING.md D-009): a real
+Supabase user with no email and no credentials, so the auth gate, the
+`public.users` trigger and every RLS policy work unchanged. Anonymous sign-in
+has to be switched on, or the button fails with *"Anonymous sign-ins are
+disabled"*:
+
+- Local: already enabled — `enable_anonymous_sign_ins = true` in
+  `supabase/config.toml`.
+- Hosted: Dashboard -> Authentication -> Sign In / Providers -> **Anonymous
+  sign-ins**.
+
+Two things to know before you keep it: every guest is a row in `auth.users`,
+so abandoned guest accounts accumulate and deserve a periodic cleanup; and a
+guest who signs out can never sign back in, since there are no credentials to
+do it with. To remove guest access entirely, delete the button from
+`AuthScreen.kt` and `AuthScreen.swift` — the shared `continueAsGuest()` has no
+other caller.
 
 ## 5. Stripe, PostHog, Loops (backend)
 

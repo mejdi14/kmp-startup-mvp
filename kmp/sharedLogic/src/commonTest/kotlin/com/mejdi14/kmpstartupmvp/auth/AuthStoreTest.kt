@@ -49,6 +49,11 @@ private class FakeAuthRepository : AuthRepository {
         calls += "oauth:$provider:$redirectUrl"
     }
 
+    override suspend fun signInAnonymously() {
+        calls += "signInAnonymously"
+        status.value = AuthStatus.SignedIn(AuthSession("guest1", null, "tok3"))
+    }
+
     override suspend fun signOut() {
         calls += "signOut"
         status.value = AuthStatus.SignedOut
@@ -89,6 +94,28 @@ class AuthStoreTest {
         store.signOut()
         assertEquals(AuthGate.LoggedOut, store.authGate.value)
         assertEquals(listOf("signIn:a@b.co", "signOut"), repo.calls)
+    }
+
+    @Test
+    fun continueAsGuestDrivesGateLikeAnySignIn() = runTest {
+        val repo = FakeAuthRepository()
+        val store = AuthStore(repo, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+        repo.status.value = AuthStatus.SignedOut
+        store.continueAsGuest()
+        // The whole point of D-009: no new gate state, no guest special-casing downstream.
+        assertEquals(AuthGate.LoggedIn, store.authGate.value)
+        assertEquals(AsyncValue.Data<AuthSession?>(AuthSession("guest1", null, "tok3")), store.state.value)
+        assertEquals(listOf("signInAnonymously"), repo.calls)
+    }
+
+    @Test
+    fun guestSignOutReturnsToLoggedOut() = runTest {
+        val repo = FakeAuthRepository()
+        val store = AuthStore(repo, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+        repo.status.value = AuthStatus.SignedOut
+        store.continueAsGuest()
+        store.signOut()
+        assertEquals(AuthGate.LoggedOut, store.authGate.value)
     }
 
     @Test

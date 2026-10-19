@@ -105,6 +105,15 @@ class AuthStore(
     suspend fun signInWithGithub() =
         repository.signInWithOAuth(OAuthProvider.Github, DeepLinks.OAUTH_REDIRECT_URL)
 
+    /**
+     * "Continue without login" (D-009): signs in anonymously, so [authGate] flips to
+     * [AuthGate.LoggedIn] like any other sign-in and the rest of the app needs no guest
+     * special-casing. The session is disposable — signing out cannot be undone, because
+     * an anonymous user has no credentials to sign back in with.
+     */
+    @Throws(Throwable::class)
+    suspend fun continueAsGuest() = repository.signInAnonymously()
+
     @Throws(Throwable::class)
     suspend fun signOut() = repository.signOut()
 }
