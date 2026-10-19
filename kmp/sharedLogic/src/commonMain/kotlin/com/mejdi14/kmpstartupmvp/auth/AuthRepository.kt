@@ -22,5 +22,27 @@ interface AuthRepository {
      * the `users` row trigger and every `auth.uid()` RLS policy keep working unchanged.
      */
     suspend fun signInAnonymously()
+    /**
+     * Account conversion (D-011): sets [email] and [password] on the *current* anonymous user, so
+     * the user id survives and nothing that hangs off it has to be migrated. Throws
+     * [EmailAlreadyRegisteredException] when the address belongs to another account, and leaves the
+     * session signed in either way. [redirectUrl] is where a confirmation email should return.
+     */
+    suspend fun convertAnonymousUser(
+        email: String,
+        password: String,
+        redirectUrl: String? = null,
+    ): AccountConversion
     suspend fun signOut()
 }
+
+/**
+ * The conversion target address already belongs to an account (D-011). There is nothing to fall
+ * back to: Supabase cannot fold a guest user into an existing one, and this app has no server-side
+ * merge, so [message] says so instead of implying the data moved.
+ */
+class EmailAlreadyRegisteredException(val email: String) : Exception(
+    "$email already belongs to an account. We can't move this guest session into it, so sign in to " +
+        "that account instead — anything saved here will stay behind. Or save this session under a " +
+        "different email.",
+)

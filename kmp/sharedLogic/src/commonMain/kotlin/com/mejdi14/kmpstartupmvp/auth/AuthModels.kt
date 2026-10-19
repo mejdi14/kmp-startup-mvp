@@ -12,7 +12,27 @@ data class AuthSession(
     val userId: String,
     val email: String?,
     val accessToken: String,
+    /**
+     * True for a guest signed in by `signInAnonymously` (D-009). Stays true until a conversion
+     * (D-011) completes, so a screen can offer "Save your account" off the session stream alone.
+     */
+    val isAnonymous: Boolean = false,
 )
+
+/**
+ * Outcome of turning a guest session into a permanent account (D-011). Either shape keeps the
+ * same user id, so the `users` row, the subscription and the Stripe customer carry over.
+ */
+sealed interface AccountConversion {
+    /** Email confirmation is off: the credentials work immediately and the session is no longer anonymous. */
+    data object Complete : AccountConversion
+
+    /**
+     * Email confirmation is on: the password is set, but [email] is only pending until the
+     * confirmation link is followed, and the session stays anonymous until then.
+     */
+    data class ConfirmationRequired(val email: String) : AccountConversion
+}
 
 /** Session lifecycle as reported by the repository (SDK types stay behind it). */
 sealed interface AuthStatus {

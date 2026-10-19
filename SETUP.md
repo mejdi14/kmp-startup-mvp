@@ -106,6 +106,39 @@ do it with. To remove guest access entirely, delete the button from
 `AuthScreen.kt` and `AuthScreen.swift` — the shared `continueAsGuest()` has no
 other caller.
 
+### Turning a guest into a real account
+
+A guest can keep the account they built (PORTING.md D-011). The Account screen
+shows **Save your account** while the session is anonymous; it asks for an
+email and password and calls `AuthStore.saveGuestAccount`, which sets both on
+the *existing* user. The user id does not change, so the `public.users` row,
+the subscription and the Stripe customer carry over untouched — there is no
+migration step and nothing else in the app has to know it happened.
+
+Two outcomes, depending on your project's email-confirmation setting:
+
+- **Confirmation off** — the credentials work immediately, the session stops
+  being anonymous, and the guest section disappears on its own.
+- **Confirmation on** (the default, and what §2.8 assumes) — the password is
+  set right away, but the address stays pending until the emailed link is
+  opened. The session is *still anonymous* until then, so the warning and the
+  entry point stay on screen. The link returns through the existing D-003 deep
+  link, `com.devtodollars.app://login-callback`, so add that bare URL to
+  Dashboard -> Authentication -> URL Configuration -> **Redirect URLs** (local
+  already allows it via `supabase/config.toml`), or the link cannot come back.
+
+If the email already belongs to another account, Supabase refuses it
+(`email_exists`) and the app says so plainly: a guest session cannot be folded
+into an existing account — there is no merge, in Supabase or here — so the
+choice is to sign in to that account and leave this session behind, or save it
+under a different email.
+
+Because a guest sign-out is unrecoverable, **Logout** asks a guest to confirm
+first and offers the conversion instead. The warning copy lives in
+`HomeScreen.kt` / `HomeScreen.swift` (`GUEST_SIGN_OUT_WARNING` /
+`guestSignOutWarning`) and the Account section's in `AccountScreen.kt` /
+`AccountScreen.swift`.
+
 ## 5. Stripe, PostHog, Loops (backend)
 
 Function secrets (`supabase/.env.local` for local, `supabase/.env` for hosted;

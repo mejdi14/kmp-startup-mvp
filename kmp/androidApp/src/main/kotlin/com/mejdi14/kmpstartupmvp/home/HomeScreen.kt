@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -13,6 +14,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
@@ -30,6 +34,14 @@ internal const val PRICING_URL =
     "https://github.com/devtodollars/mvp-boilerplate/blob/main/flutter/README.md"
 
 private const val APP_TITLE = "DevToDollars"
+
+/**
+ * Sign-out warning for a guest (D-011). A guest has no credentials, so signing out destroys the
+ * account rather than parking it; saying so is the point, and "Save your account" is the way out.
+ */
+internal const val GUEST_SIGN_OUT_WARNING =
+    "You're signed in as a guest. Signing out deletes this session for good — the account can't be " +
+        "recovered and everything in it goes with it. Save your account first to keep it."
 
 /** The four-state status sentence (§1.1); null for the loading state, which renders a spinner. */
 internal fun statusText(state: AsyncValue<UserMetadata?>): String? = when (state) {
@@ -57,7 +69,9 @@ fun HomeScreen(
     onOpenAccount: () -> Unit,
 ) {
     val state by metadataViewModel.state.collectAsStateWithLifecycle()
+    val isGuest by authViewModel.isGuest.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
+    var confirmGuestSignOut by rememberSaveable { mutableStateOf(false) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -68,7 +82,10 @@ fun HomeScreen(
                 actions = {
                     TextButton(onClick = onOpenPayments) { Text("Payments") }
                     TextButton(onClick = onOpenAccount) { Text("Account") }
-                    TextButton(onClick = { authViewModel.signOut() }) { Text("Logout") }
+                    TextButton(onClick = {
+                        // A guest sign-out is irreversible, so it asks first (D-011).
+                        if (isGuest) confirmGuestSignOut = true else authViewModel.signOut()
+                    }) { Text("Logout") }
                 },
             )
         },
@@ -82,5 +99,26 @@ fun HomeScreen(
             if (text == null) LoadingIndicator(Modifier) else Text(text)
             TextButton(onClick = { uriHandler.openUri(PRICING_URL) }) { Text("See Pricing") }
         }
+    }
+
+    if (confirmGuestSignOut) {
+        AlertDialog(
+            onDismissRequest = { confirmGuestSignOut = false },
+            title = { Text("Lose this account?") },
+            text = { Text(GUEST_SIGN_OUT_WARNING) },
+            // Keeping the account is the prominent action; signing out sits in the low-emphasis slot.
+            dismissButton = {
+                TextButton(onClick = {
+                    confirmGuestSignOut = false
+                    authViewModel.signOut()
+                }) { Text("Sign out anyway", color = MaterialTheme.colorScheme.error) }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmGuestSignOut = false
+                    onOpenAccount()
+                }) { Text("Save your account") }
+            },
+        )
     }
 }

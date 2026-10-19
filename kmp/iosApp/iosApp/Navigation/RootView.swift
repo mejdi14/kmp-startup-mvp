@@ -40,7 +40,7 @@ struct SignedInStack: View {
             .navigationDestination(for: SignedInRoute.self) { route in
                 switch route {
                 case .account:
-                    AccountScreen(metadata: metadata)
+                    AccountScreen(auth: auth, metadata: metadata)
                 case let .payments(price):
                     PaymentsScreen(payments: payments, price: price, onDone: { path.removeAll() })
                 }

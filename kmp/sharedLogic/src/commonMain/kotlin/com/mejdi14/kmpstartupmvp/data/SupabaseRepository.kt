@@ -1,8 +1,10 @@
 package com.mejdi14.kmpstartupmvp.data
 
+import com.mejdi14.kmpstartupmvp.auth.AccountConversion
 import com.mejdi14.kmpstartupmvp.auth.AuthRepository
 import com.mejdi14.kmpstartupmvp.auth.AuthSession
 import com.mejdi14.kmpstartupmvp.auth.AuthStatus
+import com.mejdi14.kmpstartupmvp.auth.EmailAlreadyRegisteredException
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import com.mejdi14.kmpstartupmvp.auth.IdTokenProvider
@@ -12,6 +14,8 @@ import io.github.jan.supabase.auth.providers.Github
 import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.providers.builtin.IDToken
+import io.github.jan.supabase.auth.exception.AuthErrorCode
+import io.github.jan.supabase.auth.exception.AuthRestException
 import io.github.jan.supabase.auth.status.SessionStatus
 import com.mejdi14.kmpstartupmvp.metadata.MetadataRepository
 import com.mejdi14.kmpstartupmvp.metadata.SubscriptionWithPrice
@@ -56,6 +60,7 @@ class SupabaseRepository(val client: SupabaseClient) : AuthRepository, MetadataR
                         userId = status.session.user?.id.orEmpty(),
                         email = status.session.user?.email,
                         accessToken = status.session.accessToken,
+                        isAnonymous = status.session.user?.isAnonymous == true,
                     )
                 )
                 is SessionStatus.RefreshFailure -> null
@@ -107,6 +112,39 @@ class SupabaseRepository(val client: SupabaseClient) : AuthRepository, MetadataR
 
     override suspend fun signInAnonymously() {
         client.auth.signInAnonymously()
+    }
+
+    /**
+     * D-011. `updateUser` on an anonymous user adds the credentials in place, keeping the user id.
+     * The default `updateCurrentUser = true` writes the returned user back into the stored session,
+     * so the `isAnonymous` flag on the session stream follows without a re-fetch.
+     *
+     * With email confirmation on (§2.8) GoTrue keeps the old (empty) email and reports the address
+     * as `newEmail` until the link is followed, which is exactly the pending case; the password is
+     * live immediately either way.
+     */
+    override suspend fun convertAnonymousUser(
+        email: String,
+        password: String,
+        redirectUrl: String?,
+    ): AccountConversion {
+        val user = try {
+            client.auth.updateUser(redirectUrl = redirectUrl) {
+                this.email = email
+                this.password = password
+            }
+        } catch (e: AuthRestException) {
+            // GoTrue reports a taken address as email_exists, or user_already_exists on older versions.
+            if (e.errorCode == AuthErrorCode.EmailExists || e.errorCode == AuthErrorCode.UserAlreadyExists) {
+                throw EmailAlreadyRegisteredException(email)
+            }
+            throw e
+        }
+        return if (user.email.equals(email, ignoreCase = true)) {
+            AccountConversion.Complete
+        } else {
+            AccountConversion.ConfirmationRequired(email)
+        }
     }
 
     override suspend fun signOut() {

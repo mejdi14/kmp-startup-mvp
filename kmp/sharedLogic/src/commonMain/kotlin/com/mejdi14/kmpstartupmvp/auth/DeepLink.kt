@@ -9,6 +9,13 @@ object DeepLinks {
     /** `redirect_to` for the GitHub browser sign-in (task 10); must be in the §2.8 allow-list. */
     const val OAUTH_REDIRECT_URL = BASE_URL
 
+    /**
+     * `redirect_to` for the confirmation email sent when a guest account is converted (D-011).
+     * Same URL as [OAUTH_REDIRECT_URL] on purpose: the link carries a PKCE `code` on the bare host,
+     * so [parse] already classifies it as [DeepLink.OAuthCallback] and the existing exchange applies.
+     */
+    const val EMAIL_CONFIRM_REDIRECT_URL = BASE_URL
+
     /** `redirect_to` for password-recovery emails; must be in the §2.8 allow-list. */
     const val RESET_REDIRECT_URL = "$BASE_URL/reset"
 
