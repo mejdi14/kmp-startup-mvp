@@ -5,3 +5,9 @@ PRODUCT_BUNDLE_IDENTIFIER=com.mejdi14.kmpstartupmvp.KmpStartupMvp$(TEAM_ID)
 
 CURRENT_PROJECT_VERSION=1
 MARKETING_VERSION=1.0
+// Native Google Sign-In (D-008). GOOGLE_IOS_CLIENT_ID is the iOS OAuth client; GOOGLE_WEB_CLIENT_ID is the web
+// client registered in Supabase's Google provider. GOOGLE_REVERSED_CLIENT_ID is the iOS client ID reversed
+// (com.googleusercontent.apps.<id>), used as a URL scheme. Empty disables Google sign-in with a clear error.
+GOOGLE_IOS_CLIENT_ID=
+GOOGLE_WEB_CLIENT_ID=
+GOOGLE_REVERSED_CLIENT_ID=com.googleusercontent.apps.unconfigured

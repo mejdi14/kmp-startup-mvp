@@ -4,7 +4,7 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
-	<!-- D-003 custom scheme (task 9). Config-only until task 13 runs the app on iOS; keep in sync with DeepLinks. -->
+	<!-- D-003 custom scheme (task 9); keep in sync with DeepLinks. Task 13 wires onOpenURL. -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -15,6 +15,26 @@
 				<string>com.devtodollars.app</string>
 			</array>
 		</dict>
+		<!-- Google Sign-In redirect (reversed iOS client ID, from Config.xcconfig). -->
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>google-signin</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>$(GOOGLE_REVERSED_CLIENT_ID)</string>
+			</array>
+		</dict>
 	</array>
+	<key>GIDClientID</key>
+	<string>$(GOOGLE_IOS_CLIENT_ID)</string>
+	<key>GIDServerClientID</key>
+	<string>$(GOOGLE_WEB_CLIENT_ID)</string>
+	<!-- PostHog native config (PORTING.md §1.5); the project key is a public client key, as in Flutter. -->
+	<key>com.posthog.posthog.API_KEY</key>
+	<string>phc_brFjanMrA2KXPYyvFjLdwJC9VJvl4VG7mG9yKqvgCCY</string>
+	<key>com.posthog.posthog.POSTHOG_HOST</key>
+	<string>https://app.posthog.com</string>
+	<key>com.posthog.posthog.CAPTURE_APPLICATION_LIFECYCLE_EVENTS</key>
+	<true/>
 </dict>
 </plist>
