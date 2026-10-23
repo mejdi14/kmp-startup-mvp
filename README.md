@@ -33,13 +33,12 @@ Kotlin Multiplatform core**, wired to **Supabase**, **Stripe** and **PostHog**.
 3. [Quick start](#-quick-start)
 4. [Make it yours](#-make-it-yours) — the rename & re-key checklist
 5. [Architecture](#-architecture)
-6. [Key flows](#-key-flows) — auth, guests, payments, deep links, errors
-7. [Project layout](#-project-layout)
-8. [Adding a feature](#-adding-a-feature)
-9. [Testing & CI](#-testing--ci)
-10. [Before you ship](#-before-you-ship)
-11. [Troubleshooting](#-troubleshooting)
-12. [Tech stack](#-tech-stack) · [Docs map](#-docs-map)
+6. [Project layout](#-project-layout)
+7. [Adding a feature](#-adding-a-feature)
+8. [Testing & CI](#-testing--ci)
+9. [Before you ship](#-before-you-ship)
+10. [Troubleshooting](#-troubleshooting)
+11. [Tech stack](#-tech-stack) · [Docs map](#-docs-map)
 
 ---
 
@@ -350,119 +349,6 @@ pie showData
 Every architectural choice is written down as a numbered decision in
 **[PORTING.md](PORTING.md)** (D-001 … D-011) with what was chosen, what was
 rejected, and what would make it change.
-
----
-
-## 🔄 Key flows
-
-### 🚪 Auth gate
-
-Navigation is driven by a single derived value, `AuthGate`, not by the raw
-session — so a token refresh never flashes the login screen.
-
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> Unknown: app start
-    Unknown --> LoggedOut: no stored session / error
-    Unknown --> LoggedIn: session restored
-    LoggedOut --> LoggedIn: sign in · sign up confirmed · OAuth · guest
-    LoggedIn --> LoggedOut: sign out
-    LoggedIn --> LoggedIn: token refresh (no navigation)
-
-    note right of Unknown: Loading screen
-    note right of LoggedOut: Auth screen
-    note right of LoggedIn: Home · Account · Payments
-```
-
-### 👻 Guest lifecycle
-
-"Continue without login" creates a **real** Supabase user with no email, so RLS,
-triggers and the gate all work unchanged. "Save your account" attaches an email
-and password to that *same* user id — nothing to migrate.
-
-```mermaid
-stateDiagram-v2
-    direction LR
-    [*] --> Guest: Continue without login
-    Guest --> Pending: save account, confirmation on
-    Guest --> Registered: save account, confirmation off
-    Pending --> Registered: opens email link
-    Guest --> Guest: email already taken → explained, no merge
-    Guest --> Lost: sign out (confirm dialog warns first)
-    Registered --> [*]
-
-    note right of Guest
-        Cannot open Stripe —
-        asked to save the account first
-    end note
-```
-
-### 💳 Subscribing with Stripe
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor U as User
-    participant App as App (PaymentsStore)
-    participant Fn as get_stripe_url
-    participant S as Stripe
-    participant WH as stripe_webhook
-    participant DB as Postgres
-
-    U->>App: Tap "Subscribe"
-    App->>App: Guard: signed in & not a guest
-    App->>Fn: price id + return_url (deep link)
-    Fn->>S: Create Checkout / Portal session
-    S-->>Fn: Session URL
-    Fn-->>App: URL
-    App->>S: Open in Custom Tab / ASWebAuthenticationSession
-    U->>S: Pays
-    S->>WH: checkout / subscription events
-    WH->>DB: Upsert subscriptions
-    S-->>App: Redirect to login-callback/stripe-return
-    loop Poll with backoff (~30s)
-        App->>DB: Query subscription
-    end
-    App-->>U: Status updated ✅
-```
-
-> Why polling? The webhook write is asynchronous and the `subscriptions` table
-> isn't in the realtime publication — see PORTING.md **D-004** / **D-005**.
-
-### 🔗 Deep links
-
-One custom scheme, parsed once in shared code
-([`DeepLink.kt`](kmp/sharedLogic/src/commonMain/kotlin/com/mejdi14/kmpstartupmvp/auth/DeepLink.kt)),
-routed to the store that owns it.
-
-```mermaid
-flowchart LR
-    OS["OS opens<br/>com.devtodollars.app://login-callback…"] --> P{"DeepLinks.parse"}
-    P -->|"?code= (OAuth, email confirm)"| A1["AuthStore<br/>exchange code for session"]
-    P -->|"/reset?code="| A2["AuthStore<br/>session + new-password sheet"]
-    P -->|"/stripe-return"| PS["PaymentsStore<br/>poll subscription"]
-    P -->|"/payments?price="| PO["PaymentsStore<br/>open Checkout"]
-    P -->|"error= / error_description="| E["linkError<br/>Link didn't work alert"]
-```
-
-### 💬 Error messages
-
-Every failure — Supabase, network, Stripe, an expired link — goes through one
-shared mapper, so both apps say **exactly the same sentence**, and the raw
-technical detail goes to the log instead of the screen.
-
-```mermaid
-flowchart LR
-    T["Any Throwable"] --> C["classifyError()"] --> K["ErrorKind<br/>(Offline, InvalidCredentials,<br/>GuestCheckout, ExpiredLink, …)"]
-    K --> M["userMessage<br/>one human sentence"]
-    M --> AN["Android<br/>it.userMessage()"]
-    M --> IO["iOS<br/>error.userMessage"]
-```
-
-To change a message or add a new case, edit
-[`UserFacingError.kt`](kmp/sharedLogic/src/commonMain/kotlin/com/mejdi14/kmpstartupmvp/errors/UserFacingError.kt)
-— both platforms pick it up.
 
 ---
 
