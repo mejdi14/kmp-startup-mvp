@@ -1,11 +1,11 @@
 <div align="center">
 
-# KMP Startup MVP
+# 🚀 KMP Startup MVP
 
-**Ship a subscription app on iOS and Android without writing your business logic twice.**
+### Ship a subscription app on iOS and Android — without writing your business logic twice.
 
-Native UI on both platforms — Jetpack Compose and SwiftUI — over one shared
-Kotlin Multiplatform core, wired to Supabase, Stripe and PostHog.
+Native UI on both platforms (**Jetpack Compose** + **SwiftUI**) over **one shared
+Kotlin Multiplatform core**, wired to **Supabase**, **Stripe** and **PostHog**.
 
 [![CI](https://github.com/mejdi14/kmp-startup-mvp/actions/workflows/ci.yml/badge.svg)](https://github.com/mejdi14/kmp-startup-mvp/actions/workflows/ci.yml)
 ![Kotlin](https://img.shields.io/badge/Kotlin-2.4.20-7F52FF?logo=kotlin&logoColor=white)
@@ -13,201 +13,664 @@ Kotlin Multiplatform core, wired to Supabase, Stripe and PostHog.
 ![Android](https://img.shields.io/badge/minSdk-24-3DDC84?logo=android&logoColor=white)
 ![iOS](https://img.shields.io/badge/iOS-18.2%2B-000000?logo=apple&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?logo=supabase&logoColor=white)
+![Stripe](https://img.shields.io/badge/Stripe-635BFF?logo=stripe&logoColor=white)
+![PostHog](https://img.shields.io/badge/PostHog-F54E00?logo=posthog&logoColor=white)
+
+**[Quick start](#-quick-start)** ·
+**[Make it yours](#-make-it-yours)** ·
+**[Architecture](#-architecture)** ·
+**[Add a feature](#-adding-a-feature)** ·
+**[Troubleshooting](#-troubleshooting)**
 
 </div>
 
 ---
 
-## What this is
+## 📖 Table of contents
+
+1. [What this is](#-what-this-is)
+2. [What you get](#-what-you-get)
+3. [Quick start](#-quick-start)
+4. [Make it yours](#-make-it-yours) — the rename & re-key checklist
+5. [Architecture](#-architecture)
+6. [Key flows](#-key-flows) — auth, guests, payments, deep links, errors
+7. [Project layout](#-project-layout)
+8. [Adding a feature](#-adding-a-feature)
+9. [Testing & CI](#-testing--ci)
+10. [Before you ship](#-before-you-ship)
+11. [Troubleshooting](#-troubleshooting)
+12. [Tech stack](#-tech-stack) · [Docs map](#-docs-map)
+
+---
+
+## 💡 What this is
 
 The part of a subscription app that is the same every time — sign-in, session
-persistence, an auth gate, a profile screen, Stripe checkout, subscription
-status, analytics — already built, tested and running on both platforms.
+persistence, an auth gate, guest access, a profile screen, Stripe checkout,
+subscription status, analytics, friendly error messages — **already built,
+tested and running on both platforms.**
 
 It is deliberately **not** a cross-platform UI framework. Your screens are real
 Compose and real SwiftUI, so they look and feel native and you can style them
-however you like. Only the logic underneath is shared.
+however you like. **Only the logic underneath is shared.**
 
+> [!NOTE]
 > **Where it came from.** This is a port of a Flutter/Next.js boilerplate, kept
 > under `flutter/` for reference. `docs/` and `BOILERPLATE-NOTES.md` describe
 > that *original* — they are not docs for this template.
 
-## What you get
+---
+
+## ✨ What you get
 
 | | Feature | Details |
-|---|---|---|
+|:-:|---|---|
 | 🔐 | **Email + password auth** | Sign-up with email confirmation, sign-in, sign-out, password reset by deep link |
-| 🪪 | **Social sign-in** | Google (native, Credential Manager / GoogleSignIn), Apple (native), GitHub (browser redirect) |
+| 🪪 | **Social sign-in** | Google (native), Apple (native, iOS), GitHub (browser redirect) |
+| 👻 | **Guest mode** | "Continue without login" via a Supabase anonymous session |
+| 🔁 | **Guest → real account** | "Save your account" keeps the same user id, data and subscription |
 | 🚪 | **Auth-gated navigation** | One derived gate state drives routing; token refreshes never bounce the user |
 | 💾 | **Session persistence** | Supabase PKCE sessions survive a cold start on both platforms |
 | 💳 | **Stripe subscriptions** | Checkout and Billing Portal via the `get_stripe_url` edge function, with polling on return |
 | 📊 | **Subscription status** | `users` row joined with the active subscription, price and product |
 | 👤 | **Account screen** | Edit display name and avatar URL, with validation |
+| 💬 | **Human error messages** | One shared mapper turns any failure into the same sentence on both platforms |
 | 📈 | **Analytics** | PostHog identify/reset tied to the session stream, plus screen views |
-| 🔗 | **Deep links** | Custom scheme, shared parsing, used for auth returns and Stripe returns |
+| 🔗 | **Deep links** | Custom scheme, shared parsing, for auth returns and Stripe returns — with a "Link didn't work" alert on failure |
 | ✅ | **CI from day one** | GitHub Actions: Android tests, lint, assemble; iOS simulator build and Kotlin/Native tests |
 
-Screens, on both platforms: **Loading** · **Auth** · **Home** · **Account** ·
-**Payments** · password **recover** and **reset** sheets.
+**Screens, on both platforms:** Loading · Auth · Home · Account · Payments ·
+Recover password · Reset password · Save your account.
 
-## How it fits together
+---
+
+## ⚡ Quick start
+
+### Prerequisites
+
+| Tool | Why |
+|---|---|
+| ☕ **JDK 21** | Gradle toolchain (CI uses Temurin 21) |
+| 🤖 **Android Studio / Android SDK** | Android app |
+| 🍎 **Xcode** (macOS) | iOS app and the Kotlin/Native framework |
+| 🐳 **Docker + [Supabase CLI](https://supabase.com/docs/guides/cli)** | Local backend |
+| 🦕 **[Deno](https://deno.com)** *(optional)* | Syncing Stripe products into Supabase |
+
+### Your first hour
 
 ```mermaid
-flowchart TD
-    subgraph UI["Native UI — one per platform"]
-        A["androidApp<br/>Jetpack Compose<br/>Navigation Compose"]
-        I["iosApp<br/>SwiftUI<br/>NavigationStack"]
-    end
+flowchart LR
+    A["1 · Clone"] --> B["2 · Point Gradle<br/>at Android SDK"]
+    B --> C["3 · Run checks<br/>(no backend needed)"]
+    C --> D["4 · supabase start"]
+    D --> E{"Platform?"}
+    E -->|Android| F["adb reverse<br/>+ Run androidApp"]
+    E -->|iOS| G["Set TEAM_ID<br/>+ Run in Xcode"]
+    F --> H["✅ Sign up, confirm mail<br/>in Inbucket, log in"]
+    G --> H
+    H --> I["5 · Make it yours"]
 
-    subgraph SHARED["sharedLogic — Kotlin Multiplatform, no UI"]
-        ST["Stores<br/>AuthStore · MetadataStore · PaymentsStore<br/>expose StateFlow"]
-        RP["Repositories<br/>Auth · Metadata · Payments"]
-    end
-
-    subgraph BACK["Backend"]
-        SB["Supabase<br/>auth · Postgres · edge functions"]
-        STR["Stripe"]
-        PH["PostHog"]
-    end
-
-    A -->|"ViewModel + collectAsStateWithLifecycle"| ST
-    I -->|"ObservableObject + StateFlow bridge"| ST
-    ST --> RP
-    RP --> SB
-    SB <-->|"webhooks"| STR
-    A --> PH
-    I --> PH
+    classDef done fill:#3ECF8E,stroke:#2a9d6a,color:#fff
+    class H done
 ```
 
-**The one rule:** `sharedLogic` holds business and data logic and never any UI.
-Each platform wraps the same stores in its own idiom — an Android `ViewModel`,
-an iOS `ObservableObject` over a `StateFlow` bridge — so the state machine is
-written once and both apps stay genuinely native.
+**1 — Clone**
 
-The reasoning behind every such choice is written down in
-**[PORTING.md](PORTING.md)** as numbered decisions (D-001 … D-008).
+```bash
+git clone https://github.com/mejdi14/kmp-startup-mvp.git my-app
+```
 
-## Project layout
+**2 — Point Gradle at your Android SDK** *(Android Studio does this for you on first open)*
 
-| Path | Contents |
-|---|---|
-| **`kmp/sharedLogic`** | Shared logic only: Supabase client, repositories, stores, validation, deep links |
-| **`kmp/androidApp`** | Jetpack Compose UI, Navigation Compose, Google sign-in, Custom Tabs |
-| **`kmp/iosApp`** | SwiftUI UI, `NavigationStack`, Apple/Google sign-in — open `iosApp.xcodeproj` |
-| `supabase/` | Migrations, edge functions (`get_stripe_url`, `stripe_webhook`, `on_user_modify`), local config |
-| `.github/workflows/ci.yml` | The CI that runs on every push and PR |
-| **[`SETUP.md`](SETUP.md)** | Full setup: backends, redirect URLs, social sign-in, Stripe, signing |
-| [`PORTING.md`](PORTING.md) · [`TASKS.md`](TASKS.md) | Design decisions and the build order of the port |
-| `flutter/` · `docs/` | The original Flutter/Next.js boilerplate — **reference only** |
-
-## Quick start
-
-**Prerequisites:** JDK 21 · Android SDK · Xcode (for iOS) · Docker + the
-[Supabase CLI](https://supabase.com/docs/guides/cli) (for the local backend).
-
-**1. Point Gradle at your Android SDK**
-
-```sh
+```bash
 echo "sdk.dir=$HOME/Library/Android/sdk" > kmp/local.properties
 ```
 
-**2. Run the checks — no device, no backend, no accounts needed**
+**3 — Run the checks.** No device, no backend, no accounts needed. If this is
+green, your toolchain is fine.
 
-```sh
+```bash
 cd kmp && ./gradlew :sharedLogic:allTests :androidApp:testDebugUnitTest :androidApp:lintDebug :androidApp:assembleDebug
 ```
 
-**3. Start the local backend and run the app**
+**4 — Start the local backend**
 
-```sh
+```bash
 supabase start
 ```
 
-- **Android:** open `kmp/` in Android Studio, run `androidApp`.
-  On an emulator, `localhost` is the emulator itself — run
-  `adb reverse tcp:54321 tcp:54321` first.
-- **iOS:** open `kmp/iosApp/iosApp.xcodeproj`, set `TEAM_ID` in
-  `iosApp/Configuration/Config.xcconfig`, and run. The *Compile Kotlin
-  Framework* build phase calls Gradle for you.
+This prints the local API URL and anon key — the debug builds already point at
+them, so there's nothing to copy. Sign-up confirmation emails land in
+**Inbucket** at <http://localhost:54324>.
 
-One more step is **required** before auth redirects work: allow-list the
-redirect URL as described in [SETUP.md § 3](SETUP.md#3-allow-the-mobile-redirect-url-required-for-auth). Then follow the rest of
-SETUP.md for social sign-in and Stripe.
+**5 — Run the app**
 
-### Which backend a build talks to
+<table>
+<tr><th>🤖 Android</th><th>🍎 iOS</th></tr>
+<tr valign="top"><td>
 
-| Build | Backend |
+1. Open `kmp/` in Android Studio.
+2. Forward the backend port (the emulator's `localhost` is itself):
+   ```bash
+   adb reverse tcp:54321 tcp:54321
+   ```
+3. Run the **`androidApp`** configuration.
+
+</td><td>
+
+1. Open `kmp/iosApp/iosApp.xcodeproj`.
+2. Set `TEAM_ID` in `iosApp/Configuration/Config.xcconfig`.
+3. Press **Run**. The *Compile Kotlin Framework* build phase calls Gradle for
+   you — no separate step.
+
+</td></tr>
+</table>
+
+> [!TIP]
+> Want Stripe locally too? Serve the edge functions alongside the database:
+> ```bash
+> supabase functions serve --env-file supabase/.env.local --import-map supabase/functions/deno.json
+> ```
+> and fill `supabase/.env.local` with the secrets listed in [SETUP.md § 5](SETUP.md#5-stripe-posthog-loops-backend).
+
+### Which backend does a build talk to?
+
+```mermaid
+flowchart LR
+    subgraph Builds
+        D["Android debug<br/>Xcode Debug"]
+        R["Android release<br/>Xcode Release"]
+    end
+    D -->|"SUPABASE_ENV = LOCAL<br/>Swift DEBUG flag"| L[("Local Supabase<br/>localhost:54321")]
+    R -->|"SUPABASE_ENV = HOSTED<br/>Swift release"| H[("Hosted Supabase<br/>your project")]
+```
+
+Both are plain constants in
+[`SupabaseConfig.kt`](kmp/sharedLogic/src/commonMain/kotlin/com/mejdi14/kmpstartupmvp/config/SupabaseConfig.kt)
+— a URL plus the public **anon** key, committed on purpose. **Nothing secret
+lives in the client.** Server secrets (Stripe, Loops, PostHog server key) live
+only in git-ignored `supabase/.env*` files.
+
+---
+
+## 🎨 Make it yours
+
+Everything below still points at the original template. Work through it once,
+top to bottom, and the app is yours.
+
+```mermaid
+flowchart TD
+    S(["Fresh clone"]) --> ID["🏷️ Identity<br/>app id · bundle id · URL scheme · name"]
+    ID --> BE["🗄️ Backend<br/>Supabase project · redirect URLs · secrets"]
+    BE --> AU["🔐 Sign-in providers<br/>Google · Apple · GitHub · anonymous"]
+    AU --> PAY["💳 Payments<br/>Stripe products · webhook"]
+    PAY --> AN["📈 Analytics<br/>PostHog key"]
+    AN --> UI["🖌️ Product<br/>Home copy · theme · icons"]
+    UI --> SHIP(["Ready to ship ✅"])
+```
+
+### 1. 🏷️ Identity
+
+| What | Current value | Where to change it |
+|---|---|---|
+| Android application id | `com.mejdi14.kmpstartupmvp` | `kmp/androidApp/build.gradle.kts` (`applicationId`, `namespace`) |
+| iOS bundle id | `com.mejdi14.kmpstartupmvp.KmpStartupMvp…` | `kmp/iosApp/Configuration/Config.xcconfig` (`PRODUCT_BUNDLE_IDENTIFIER`) |
+| iOS display name | `KmpStartupMvp` | `Config.xcconfig` (`PRODUCT_NAME`) |
+| Android app name | `KmpStartupMvp` | `kmp/androidApp/src/main/res/values/strings.xml` |
+| **Deep-link scheme** | `com.devtodollars.app` | **All four together:** `DeepLink.kt` (`SCHEME`), `AndroidManifest.xml`, `Info.plist`, `supabase/config.toml` (`additional_redirect_urls`) |
+| Kotlin package | `com.mejdi14.kmpstartupmvp` | Optional — Android Studio *Refactor → Rename* on the package |
+
+> [!IMPORTANT]
+> The deep-link scheme must match in **all four places** *and* in your hosted
+> Supabase dashboard's Redirect URLs, or sign-in, password reset and Stripe
+> returns will silently fail to come back to the app.
+
+### 2. 🗄️ Backend
+
+1. Create a Supabase project, then:
+   ```bash
+   supabase link --project-ref <your-ref>
+   supabase db push
+   supabase functions deploy --import-map supabase/functions/deno.json
+   supabase secrets set --env-file supabase/.env
+   ```
+2. Put your project URL and anon key into **`SupabaseConfig.HOSTED`**.
+3. Dashboard → Authentication → URL Configuration → **Redirect URLs**, add:
+   - `<your-scheme>://login-callback`
+   - `<your-scheme>://login-callback/**`
+
+### 3. 🔐 Sign-in providers *(all optional)*
+
+| Provider | Supabase | Android | iOS |
+|---|---|---|---|
+| **Google** | Providers → Google (web client id + secret) | `GOOGLE_WEB_CLIENT_ID` in `~/.gradle/gradle.properties` | `GOOGLE_IOS_CLIENT_ID`, `GOOGLE_WEB_CLIENT_ID`, `GOOGLE_REVERSED_CLIENT_ID` in `Config.xcconfig` |
+| **Apple** | Providers → Apple | — | *Sign in with Apple* capability on your App ID |
+| **GitHub** | Providers → GitHub (OAuth app) | nothing | nothing |
+| **Guest** | Sign In / Providers → **Anonymous sign-ins** (already on locally) | nothing | nothing |
+
+Leave any of them empty and its button shows a clear *"not configured"* error
+instead of failing oddly. Don't want guest mode? Delete the button from
+`AuthScreen.kt` and `AuthScreen.swift` — nothing else calls `continueAsGuest()`.
+
+### 4. 💳 Payments
+
+1. Add your secrets to `supabase/.env` (hosted) / `supabase/.env.local` (local):
+   ```
+   STRIPE_SECRET_KEY=
+   STRIPE_WEBHOOK_SIGNING_SECRET=
+   POSTHOG_CLIENT_KEY=
+   LOOPS_API_KEY=
+   LOOPS_WELCOME_TEMPLATE_ID=
+   ```
+2. Sync products and prices: `deno run -A supabase/functions/_scripts/sync-stripe.ts`
+3. Point a Stripe webhook at the deployed **`stripe_webhook`** function.
+
+### 5. 📈 Analytics
+
+Replace the PostHog project key in
+`kmp/androidApp/src/main/AndroidManifest.xml` and `kmp/iosApp/iosApp/Info.plist`
+— otherwise your events land in the template owner's project.
+
+### 6. 🖌️ Product
+
+- The **Home** screen copy and its *"See Pricing"* link are placeholders marked
+  `TODO(product-owner)`.
+- Colors and typography: `ui/theme/Theme.kt` (Android) and `Theme/AppTheme.swift` (iOS).
+- App icons: `androidApp/src/main/res/` and the Xcode asset catalog.
+
+📘 Every step above is explained in depth in **[SETUP.md](SETUP.md)**.
+
+---
+
+## 🏛️ Architecture
+
+```mermaid
+flowchart TD
+    subgraph UI["📱 Native UI — one per platform"]
+        direction LR
+        A["<b>androidApp</b><br/>Jetpack Compose<br/>Navigation Compose<br/>ViewModels"]
+        I["<b>iosApp</b><br/>SwiftUI<br/>NavigationStack<br/>ObservableObject adapters"]
+    end
+
+    subgraph SHARED["🧠 sharedLogic — Kotlin Multiplatform, no UI"]
+        ST["<b>Stores</b> (expose StateFlow)<br/>AuthStore · MetadataStore · PaymentsStore"]
+        X["<b>Pure logic</b><br/>DeepLinks · validation · UserFacingError"]
+        RP["<b>Repositories</b> (interfaces)<br/>Auth · Metadata · Payments"]
+        SR["SupabaseRepository<br/>(supabase-kt + Ktor)"]
+    end
+
+    subgraph BACK["☁️ Backend"]
+        SB["<b>Supabase</b><br/>Auth · Postgres + RLS<br/>Edge functions"]
+        STR["<b>Stripe</b>"]
+        PH["<b>PostHog</b>"]
+    end
+
+    A -->|"collectAsStateWithLifecycle"| ST
+    I -->|"FlowWatch bridge → @Published"| ST
+    ST --> X
+    ST --> RP
+    RP -. implemented by .-> SR
+    SR --> SB
+    SB <-->|"get_stripe_url · stripe_webhook"| STR
+    A --> PH
+    I --> PH
+
+    classDef shared fill:#7F52FF,stroke:#5b3bb8,color:#fff
+    class ST,X,RP,SR shared
+```
+
+### The one rule
+
+> **`sharedLogic` holds business and data logic and never any UI.**
+
+Each platform wraps the *same* stores in its own idiom — an Android `ViewModel`,
+an iOS `ObservableObject` fed by a small `StateFlow` bridge — so the state
+machine is written once and both apps stay genuinely native.
+
+| Layer | Android | iOS |
+|---|---|---|
+| **App graph** (owns client + stores) | `KmpApplication.kt` | `AppGraph.kt` (iosMain) + `AppEnvironment.swift` |
+| **Adapter** (store → UI state) | `AuthViewModel`, `MetadataViewModel`, `PaymentsViewModel` | `AuthModel`, `MetadataModel`, `PaymentsModel` |
+| **Flow bridge** | `collectAsStateWithLifecycle` | `observe` / `observeOptional` in `Bridge.swift` |
+| **Navigation** | `AppNavHost.kt` + `Routes.kt` | `RootView.swift` + `Routes.swift` |
+| **Screens** | `auth/`, `home/`, `account/`, `payments/` | `Screens/` |
+
+### Where the code lives
+
+```mermaid
+pie showData
+    title Lines of code by area
+    "Shared logic (Kotlin)" : 1382
+    "Android UI (Compose)" : 1720
+    "iOS UI (SwiftUI)" : 1403
+    "Tests & checks" : 1212
+    "Supabase functions & SQL" : 1569
+```
+
+Every architectural choice is written down as a numbered decision in
+**[PORTING.md](PORTING.md)** (D-001 … D-011) with what was chosen, what was
+rejected, and what would make it change.
+
+---
+
+## 🔄 Key flows
+
+### 🚪 Auth gate
+
+Navigation is driven by a single derived value, `AuthGate`, not by the raw
+session — so a token refresh never flashes the login screen.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> Unknown: app start
+    Unknown --> LoggedOut: no stored session / error
+    Unknown --> LoggedIn: session restored
+    LoggedOut --> LoggedIn: sign in · sign up confirmed · OAuth · guest
+    LoggedIn --> LoggedOut: sign out
+    LoggedIn --> LoggedIn: token refresh (no navigation)
+
+    note right of Unknown: Loading screen
+    note right of LoggedOut: Auth screen
+    note right of LoggedIn: Home · Account · Payments
+```
+
+### 👻 Guest lifecycle
+
+"Continue without login" creates a **real** Supabase user with no email, so RLS,
+triggers and the gate all work unchanged. "Save your account" attaches an email
+and password to that *same* user id — nothing to migrate.
+
+```mermaid
+stateDiagram-v2
+    direction LR
+    [*] --> Guest: Continue without login
+    Guest --> Pending: save account, confirmation on
+    Guest --> Registered: save account, confirmation off
+    Pending --> Registered: opens email link
+    Guest --> Guest: email already taken → explained, no merge
+    Guest --> Lost: sign out (confirm dialog warns first)
+    Registered --> [*]
+
+    note right of Guest
+        Cannot open Stripe —
+        asked to save the account first
+    end note
+```
+
+### 💳 Subscribing with Stripe
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant App as App (PaymentsStore)
+    participant Fn as get_stripe_url
+    participant S as Stripe
+    participant WH as stripe_webhook
+    participant DB as Postgres
+
+    U->>App: Tap "Subscribe"
+    App->>App: Guard: signed in & not a guest
+    App->>Fn: price id + return_url (deep link)
+    Fn->>S: Create Checkout / Portal session
+    S-->>Fn: Session URL
+    Fn-->>App: URL
+    App->>S: Open in Custom Tab / ASWebAuthenticationSession
+    U->>S: Pays
+    S->>WH: checkout / subscription events
+    WH->>DB: Upsert subscriptions
+    S-->>App: Redirect to login-callback/stripe-return
+    loop Poll with backoff (~30s)
+        App->>DB: Query subscription
+    end
+    App-->>U: Status updated ✅
+```
+
+> Why polling? The webhook write is asynchronous and the `subscriptions` table
+> isn't in the realtime publication — see PORTING.md **D-004** / **D-005**.
+
+### 🔗 Deep links
+
+One custom scheme, parsed once in shared code
+([`DeepLink.kt`](kmp/sharedLogic/src/commonMain/kotlin/com/mejdi14/kmpstartupmvp/auth/DeepLink.kt)),
+routed to the store that owns it.
+
+```mermaid
+flowchart LR
+    OS["OS opens<br/>com.devtodollars.app://login-callback…"] --> P{"DeepLinks.parse"}
+    P -->|"?code= (OAuth, email confirm)"| A1["AuthStore<br/>exchange code for session"]
+    P -->|"/reset?code="| A2["AuthStore<br/>session + new-password sheet"]
+    P -->|"/stripe-return"| PS["PaymentsStore<br/>poll subscription"]
+    P -->|"/payments?price="| PO["PaymentsStore<br/>open Checkout"]
+    P -->|"error= / error_description="| E["linkError<br/>Link didn't work alert"]
+```
+
+### 💬 Error messages
+
+Every failure — Supabase, network, Stripe, an expired link — goes through one
+shared mapper, so both apps say **exactly the same sentence**, and the raw
+technical detail goes to the log instead of the screen.
+
+```mermaid
+flowchart LR
+    T["Any Throwable"] --> C["classifyError()"] --> K["ErrorKind<br/>(Offline, InvalidCredentials,<br/>GuestCheckout, ExpiredLink, …)"]
+    K --> M["userMessage<br/>one human sentence"]
+    M --> AN["Android<br/>it.userMessage()"]
+    M --> IO["iOS<br/>error.userMessage"]
+```
+
+To change a message or add a new case, edit
+[`UserFacingError.kt`](kmp/sharedLogic/src/commonMain/kotlin/com/mejdi14/kmpstartupmvp/errors/UserFacingError.kt)
+— both platforms pick it up.
+
+---
+
+## 🗂️ Project layout
+
+```text
+kmp-startup-mvp/
+├── kmp/                          ← 👈 the template — you work here
+│   ├── sharedLogic/              🧠 Kotlin Multiplatform, logic only
+│   │   └── src/
+│   │       ├── commonMain/       auth/ · metadata/ · payments/ · errors/ · data/ · config/ · analytics/
+│   │       ├── commonTest/       store, validation, deep-link and error-mapping tests
+│   │       ├── androidMain/      Android session storage
+│   │       └── iosMain/          AppGraph + FlowWatch (the Swift bridge)
+│   ├── androidApp/               🤖 Jetpack Compose UI
+│   │   └── src/main/kotlin/…/    nav/ · auth/ · home/ · account/ · payments/ · ui/ · analytics/
+│   ├── iosApp/                   🍎 SwiftUI UI — open iosApp.xcodeproj
+│   │   ├── iosApp/               Adapters/ · Navigation/ · Screens/ · Logic/ · Platform/ · Theme/
+│   │   ├── Configuration/        Config.xcconfig (team, bundle id, Google ids)
+│   │   └── Checks/               pure-Swift logic checks (run.sh)
+│   └── gradle/libs.versions.toml version catalog
+├── supabase/                     ☁️ backend
+│   ├── migrations/               schema: users · customers · products · prices · subscriptions
+│   ├── functions/                get_stripe_url · stripe_webhook · on_user_modify
+│   └── config.toml               local config (redirect URLs, anonymous sign-ins)
+├── .github/workflows/ci.yml      ✅ CI
+├── SETUP.md                      📘 full setup guide
+├── PORTING.md                    🧭 design decisions D-001 … D-011
+├── TASKS.md                      🧱 how the port was built
+└── flutter/ · docs/              📦 original boilerplate — reference only
+```
+
+### Database at a glance
+
+```mermaid
+erDiagram
+    AUTH_USERS ||--|| USERS : "trigger creates"
+    USERS ||--o| CUSTOMERS : "has Stripe id"
+    USERS ||--o{ SUBSCRIPTIONS : has
+    PRODUCTS ||--o{ PRICES : offers
+    PRICES ||--o{ SUBSCRIPTIONS : "billed at"
+    USERS ||--o{ CHECKOUT_SESSIONS : starts
+
+    USERS {
+        uuid id PK
+        text full_name
+        text avatar_url
+    }
+    SUBSCRIPTIONS {
+        text id PK
+        uuid user_id FK
+        subscription_status status
+        text price_id FK
+    }
+```
+
+All tables have row-level security enabled; Stripe-owned tables are written
+only by the `stripe_webhook` function. Details in
+[supabase/README.md](supabase/README.md).
+
+---
+
+## 🧩 Adding a feature
+
+The same five steps every time. Shared first, then each platform wraps it.
+
+```mermaid
+flowchart LR
+    R["1 · Repository<br/>interface + Supabase impl"] --> S["2 · Store<br/>StateFlow + suspend actions"]
+    S --> T["3 · Tests<br/>fake repo in commonTest"]
+    T --> W["4 · Wire it<br/>KmpApplication + AppGraph"]
+    W --> A["5a · Android<br/>ViewModel + Compose screen"]
+    W --> I["5b · iOS<br/>ObservableObject + SwiftUI view"]
+
+    classDef shared fill:#7F52FF,stroke:#5b3bb8,color:#fff
+    class R,S,T,W shared
+```
+
+<details>
+<summary><b>Step-by-step walkthrough</b> (click to expand)</summary>
+
+1. **Repository** — in `sharedLogic/src/commonMain/.../<feature>/`, declare an
+   interface (`FooRepository`) and implement it in `data/SupabaseRepository.kt`.
+2. **Store** — `FooStore(repository, authState, scope)` exposes
+   `StateFlow`s and `suspend` actions. Annotate public suspend functions with
+   **`@Throws(Throwable::class)`** — without it, a Kotlin exception crashes the
+   iOS app instead of reaching Swift as an error.
+3. **Tests** — add `FooStoreTest` in `commonTest` with a fake repository (see
+   `PaymentsStoreTest` for the pattern). They run on JVM *and* the iOS simulator.
+4. **Wire it** — create the store in `KmpApplication.kt` (Android) and
+   `ios/AppGraph.kt` (iOS).
+5. **UI** —
+   - Android: a `FooViewModel` that forwards the store's flows, a Compose screen,
+     and a route in `nav/Routes.kt` + `AppNavHost.kt`.
+   - iOS: a `FooModel: ObservableObject` that `observe(...)`s the flows into
+     `@Published` properties, a SwiftUI view in `Screens/`, and a case in
+     `Logic/Routes.swift`.
+6. **Errors** — new failure type? Add an `ErrorKind` and its sentence in
+   `UserFacingError.kt`; both UIs show it automatically.
+
+</details>
+
+> [!TIP]
+> This repo ships Claude Code agents in `.claude/agents/` — e.g. `screen-porter`
+> builds one screen on both platforms following these conventions.
+
+---
+
+## ✅ Testing & CI
+
+```mermaid
+flowchart LR
+    P["push / PR"] --> AJ & IJ
+    subgraph AJ["🤖 Android job · ubuntu"]
+        direction TB
+        a1["sharedLogic:allTests"] --> a2["androidApp unit tests"] --> a3["lintDebug"] --> a4["assemble debug + release"]
+    end
+    subgraph IJ["🍎 iOS job · macOS 15"]
+        direction TB
+        i1["iosSimulatorArm64Test"] --> i2["xcodebuild iosApp<br/>(simulator, unsigned)"]
+    end
+```
+
+Run the same thing locally:
+
+```bash
+cd kmp
+./gradlew :sharedLogic:allTests :androidApp:testDebugUnitTest   # unit tests (JVM)
+./gradlew :androidApp:lintDebug                                  # lint
+./gradlew :sharedLogic:iosSimulatorArm64Test                     # Kotlin/Native tests (macOS)
+iosApp/Checks/run.sh                                             # pure-Swift checks (macOS)
+```
+
+| Suite | Covers |
 |---|---|
-| Android **debug** / Xcode **Debug** | Local Supabase, `http://localhost:54321` |
-| Android **release** / Xcode **Release** | Hosted Supabase |
+| **86 Kotlin tests** | Stores, auth gate, guest conversion, deep-link parsing, error mapping, validation, routes, Google sign-in config |
+| **28 Swift checks** | Email validation, routes, home status, pending-payment logic, nonce |
 
-Both are plain constants in `SupabaseConfig.kt` — URL plus the public **anon**
-key, committed on purpose, mirroring Flutter's `env.local.json` / `env.json`
-split. Nothing secret lives in the client.
+> [!WARNING]
+> **What the tests don't cover.** They are pure-logic tests — no instrumented
+> tests, no XCUITests. Real sign-up mail, OAuth round-trips, live Stripe
+> checkout and the webhook flipping a subscription to active are unit-tested
+> but have **not** been exercised against a live backend. Walk through them
+> once your own Supabase and Stripe projects are wired up.
 
-## Status
+---
 
-Every check below was run on the current `main`:
+## 🚢 Before you ship
 
-| Check | Result |
-|---|---|
-| `:sharedLogic:allTests` (common, Android host, iOS simulator) | ✅ passing |
-| `:androidApp:testDebugUnitTest` · `:lintDebug` · `:assembleDebug` | ✅ passing |
-| `xcodebuild` iosApp, Debug, iOS Simulator | ✅ building |
-| `iosApp/Checks/run.sh` — 19 pure-Swift logic checks | ✅ passing |
-| GitHub Actions CI (Android + iOS jobs) | ✅ green |
+- [ ] **Replace `SupabaseConfig.HOSTED`** — release builds currently talk to the original template's backend
+- [ ] **Replace the PostHog project key** in `AndroidManifest.xml` and `Info.plist`
+- [ ] **Rename the URL scheme** in all four places (+ hosted Redirect URLs)
+- [ ] **Rename the application / bundle id**
+- [ ] **Add Android release signing** — release is intentionally *unsigned*; add a `signingConfig` fed by your keystore in `androidApp/build.gradle.kts` (never fall back to the debug key)
+- [ ] **Fill in Google / Apple / GitHub** client ids you want, remove the ones you don't
+- [ ] **Decide on guest mode** — keep it (and plan a cleanup job for abandoned anonymous users) or remove the button
+- [ ] **Replace the Home screen placeholder** (`TODO(product-owner)`)
+- [ ] **Deploy the edge functions** and register the Stripe webhook
+- [ ] **Walk the end-to-end flows** on a real device against your hosted backend
+- [ ] **Add a `LICENSE`**
 
-That is **64 Kotlin test functions plus 19 Swift checks**, covering the stores,
-validation, route mapping and deep-link parsing.
+---
 
-**What those tests do not cover.** They are pure-logic tests. There are no
-instrumented tests and no XCUITests, so the end-to-end flows — real sign-up
-mail, OAuth round-trips, live Stripe checkout and the webhook that flips a
-subscription to active — compile and are unit-tested but have not been
-observed running against a live backend. Walk through them yourself once you
-have your own Supabase and Stripe projects wired up.
+## 🛟 Troubleshooting
 
-## Before you ship
+| Symptom | Cause | Fix |
+|---|---|---|
+| Network error on Android debug | Emulator `localhost` is the emulator | `adb reverse tcp:54321 tcp:54321` (after every emulator start) |
+| Physical iPhone can't reach backend | `localhost` is the phone | Use a hosted project / Release build |
+| Login redirect does nothing / "Link didn't work" | Redirect URL not allow-listed, or link expired | Add both `login-callback` URLs ([SETUP § 3](SETUP.md#3-allow-the-mobile-redirect-url-required-for-auth)); request a new link |
+| Sign-up says "check your email" | Email confirmation is on (by design) | Open the mail in Inbucket: <http://localhost:54324> |
+| "Anonymous sign-ins are disabled" | Provider off on hosted project | Dashboard → Sign In / Providers → Anonymous sign-ins |
+| Google button says "not configured" | Client ids empty | Fill them in (see [Make it yours § 3](#3--sign-in-providers-all-optional)) |
+| Guest can't subscribe | Intentional — no email for Stripe | "Save your account" first |
+| Subscription doesn't update after paying | Webhook not deployed / not receiving events | Deploy `stripe_webhook`, check Stripe's webhook log |
+| iOS app crashes on a failed call | Missing `@Throws` on a shared `suspend fun` | Add `@Throws(Throwable::class)` |
 
-This is a template, so a few things still point at the original project. Each
-one is a deliberate, documented placeholder:
+---
 
-- [ ] **Replace `SupabaseConfig.HOSTED`** — it currently points at the original
-      template's Supabase project, so *release* builds talk to someone else's
-      backend.
-- [ ] **Replace the PostHog project key** in `androidApp/src/main/AndroidManifest.xml`
-      and `iosApp/iosApp/Info.plist` — otherwise your analytics land in the
-      template owner's project.
-- [ ] **Rename the URL scheme** `com.devtodollars.app` to your own, in
-      `AndroidManifest.xml`, `Info.plist` and `DeepLink.kt`.
-- [ ] **Rename the application / bundle ID** from `com.mejdi14.kmpstartupmvp`.
-- [ ] **Add release signing** — the Android release build is intentionally
-      *unsigned*; it must not fall back to the debug key. Add a `signingConfig`
-      fed by your keystore in `androidApp/build.gradle.kts`.
-- [ ] **Fill in the Google / Apple / GitHub client IDs** you want. Left empty,
-      those buttons show a clear "not configured" error instead of failing oddly.
-- [ ] **Replace the Home screen placeholder** — its copy and its "See Pricing"
-      link are carried over from the original and marked `TODO(product-owner)`.
-- [ ] **Add a `LICENSE`** — the repository does not have one yet.
-
-## Tech stack
+## 🧰 Tech stack
 
 | | |
 |---|---|
 | **Language** | Kotlin 2.4.20 · Swift |
-| **Shared** | kotlinx-coroutines · kotlinx-serialization · multiplatform-settings |
+| **Shared** | kotlinx-coroutines 1.10 · kotlinx-serialization · multiplatform-settings |
 | **Android** | Jetpack Compose (BOM 2026.09.00) · Material 3 · Navigation Compose · Credential Manager · Custom Tabs |
-| **iOS** | SwiftUI · `NavigationStack` · `ASWebAuthenticationSession` · AuthenticationServices |
-| **Backend** | Supabase (`supabase-kt` 3.8.0, auth + postgrest + functions) · Ktor 3.5.2 |
-| **Payments** | Stripe, via Supabase edge functions |
+| **iOS** | SwiftUI · `NavigationStack` · `ASWebAuthenticationSession` · AuthenticationServices · GoogleSignIn |
+| **Backend** | Supabase (`supabase-kt` 3.8.0: auth + postgrest + functions) · Ktor 3.5.2 · Deno edge functions |
+| **Payments** | Stripe Checkout + Billing Portal (hosted pages) |
 | **Analytics** | PostHog (native SDK per platform) |
 | **Build** | Gradle · AGP 9.1.1 · version catalog · GitHub Actions |
 
-## Docs
+---
 
-| Document | Read it for |
+## 📚 Docs map
+
+| Document | Read it when you want to… |
 |---|---|
-| **[SETUP.md](SETUP.md)** | Going from clone to a running app: backends, redirect URLs, social sign-in, Stripe secrets, signing, troubleshooting |
-| [PORTING.md](PORTING.md) | Why the architecture is the way it is — numbered decisions D-001 … D-008 |
-| [TASKS.md](TASKS.md) | The 15 build tasks the port was assembled from, in dependency order |
-| [supabase/README.md](supabase/README.md) | The database schema and edge functions |
+| **[SETUP.md](SETUP.md)** | Go from clone to a running app, in depth: backends, redirect URLs, providers, guests, Stripe, signing |
+| **[PORTING.md](PORTING.md)** | Understand *why* — numbered decisions D-001 … D-011 |
+| [TASKS.md](TASKS.md) | See the build order the port was assembled in |
+| [kmp/README.md](kmp/README.md) | Grab the Gradle / xcodebuild one-liners |
+| [supabase/README.md](supabase/README.md) | Work on the schema and edge functions |
+
+<div align="center">
+
+---
+
+Built with Kotlin Multiplatform · Made to be forked 🍴
+
+</div>
