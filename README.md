@@ -97,21 +97,9 @@ Recover password · Reset password · Save your account.
 
 ### Your first hour
 
-```mermaid
-flowchart LR
-    A["1 · Clone"] --> B["2 · Point Gradle<br/>at Android SDK"]
-    B --> C["3 · Run checks<br/>(no backend needed)"]
-    C --> D["4 · supabase start"]
-    D --> E{"Platform?"}
-    E -->|Android| F["adb reverse<br/>+ Run androidApp"]
-    E -->|iOS| G["Set TEAM_ID<br/>+ Run in Xcode"]
-    F --> H["✅ Sign up, confirm mail<br/>in Inbucket, log in"]
-    G --> H
-    H --> I["5 · Make it yours"]
-
-    classDef done fill:#3ECF8E,stroke:#2a9d6a,color:#fff
-    class H done
-```
+<p align="center">
+  <img src=".github/readme/first-hour.svg" alt="Your first hour: clone, SDK path, run checks, supabase start, run the app, log in" width="100%">
+</p>
 
 **1 — Clone**
 
@@ -174,15 +162,9 @@ them, so there's nothing to copy. Sign-up confirmation emails land in
 
 ### Which backend does a build talk to?
 
-```mermaid
-flowchart LR
-    subgraph Builds
-        D["Android debug<br/>Xcode Debug"]
-        R["Android release<br/>Xcode Release"]
-    end
-    D -->|"SUPABASE_ENV = LOCAL<br/>Swift DEBUG flag"| L[("Local Supabase<br/>localhost:54321")]
-    R -->|"SUPABASE_ENV = HOSTED<br/>Swift release"| H[("Hosted Supabase<br/>your project")]
-```
+<p align="center">
+  <img src=".github/readme/backends.svg" alt="Debug builds use local Supabase, release builds use the hosted project" width="100%">
+</p>
 
 Both are plain constants in
 [`SupabaseConfig.kt`](kmp/sharedLogic/src/commonMain/kotlin/com/mejdi14/kmpstartupmvp/config/SupabaseConfig.kt)
@@ -197,16 +179,9 @@ only in git-ignored `supabase/.env*` files.
 Everything below still points at the original template. Work through it once,
 top to bottom, and the app is yours.
 
-```mermaid
-flowchart TD
-    S(["Fresh clone"]) --> ID["🏷️ Identity<br/>app id · bundle id · URL scheme · name"]
-    ID --> BE["🗄️ Backend<br/>Supabase project · redirect URLs · secrets"]
-    BE --> AU["🔐 Sign-in providers<br/>Google · Apple · GitHub · anonymous"]
-    AU --> PAY["💳 Payments<br/>Stripe products · webhook"]
-    PAY --> AN["📈 Analytics<br/>PostHog key"]
-    AN --> UI["🖌️ Product<br/>Home copy · theme · icons"]
-    UI --> SHIP(["Ready to ship ✅"])
-```
+<p align="center">
+  <img src=".github/readme/make-it-yours.svg" alt="Six levels: identity, backend, sign-in, payments, analytics, product, then ship" width="100%">
+</p>
 
 ### 1. 🏷️ Identity
 
@@ -283,40 +258,9 @@ Replace the PostHog project key in
 
 ## 🏛️ Architecture
 
-```mermaid
-flowchart TD
-    subgraph UI["📱 Native UI — one per platform"]
-        direction LR
-        A["<b>androidApp</b><br/>Jetpack Compose<br/>Navigation Compose<br/>ViewModels"]
-        I["<b>iosApp</b><br/>SwiftUI<br/>NavigationStack<br/>ObservableObject adapters"]
-    end
-
-    subgraph SHARED["🧠 sharedLogic — Kotlin Multiplatform, no UI"]
-        ST["<b>Stores</b> (expose StateFlow)<br/>AuthStore · MetadataStore · PaymentsStore"]
-        X["<b>Pure logic</b><br/>DeepLinks · validation · UserFacingError"]
-        RP["<b>Repositories</b> (interfaces)<br/>Auth · Metadata · Payments"]
-        SR["SupabaseRepository<br/>(supabase-kt + Ktor)"]
-    end
-
-    subgraph BACK["☁️ Backend"]
-        SB["<b>Supabase</b><br/>Auth · Postgres + RLS<br/>Edge functions"]
-        STR["<b>Stripe</b>"]
-        PH["<b>PostHog</b>"]
-    end
-
-    A -->|"collectAsStateWithLifecycle"| ST
-    I -->|"FlowWatch bridge → @Published"| ST
-    ST --> X
-    ST --> RP
-    RP -. implemented by .-> SR
-    SR --> SB
-    SB <-->|"get_stripe_url · stripe_webhook"| STR
-    A --> PH
-    I --> PH
-
-    classDef shared fill:#7F52FF,stroke:#5b3bb8,color:#fff
-    class ST,X,RP,SR shared
-```
+<p align="center">
+  <img src=".github/readme/architecture.svg" alt="Android and iOS UIs on top of one shared Kotlin core, backed by Supabase, Stripe and PostHog" width="100%">
+</p>
 
 ### The one rule
 
@@ -336,15 +280,9 @@ machine is written once and both apps stay genuinely native.
 
 ### Where the code lives
 
-```mermaid
-pie showData
-    title Lines of code by area
-    "Shared logic (Kotlin)" : 1382
-    "Android UI (Compose)" : 1720
-    "iOS UI (SwiftUI)" : 1403
-    "Tests & checks" : 1212
-    "Supabase functions & SQL" : 1569
-```
+<p align="center">
+  <img src=".github/readme/code-by-area.svg" alt="Lines of code by area: shared logic, Android UI, iOS UI, tests, Supabase" width="100%">
+</p>
 
 Every architectural choice is written down as a numbered decision in
 **[PORTING.md](PORTING.md)** (D-001 … D-011) with what was chosen, what was
@@ -383,27 +321,9 @@ kmp-startup-mvp/
 
 ### Database at a glance
 
-```mermaid
-erDiagram
-    AUTH_USERS ||--|| USERS : "trigger creates"
-    USERS ||--o| CUSTOMERS : "has Stripe id"
-    USERS ||--o{ SUBSCRIPTIONS : has
-    PRODUCTS ||--o{ PRICES : offers
-    PRICES ||--o{ SUBSCRIPTIONS : "billed at"
-    USERS ||--o{ CHECKOUT_SESSIONS : starts
-
-    USERS {
-        uuid id PK
-        text full_name
-        text avatar_url
-    }
-    SUBSCRIPTIONS {
-        text id PK
-        uuid user_id FK
-        subscription_status status
-        text price_id FK
-    }
-```
+<p align="center">
+  <img src=".github/readme/database.svg" alt="Database tables and their relations, all with row-level security" width="100%">
+</p>
 
 All tables have row-level security enabled; Stripe-owned tables are written
 only by the `stripe_webhook` function. Details in
@@ -415,17 +335,9 @@ only by the `stripe_webhook` function. Details in
 
 The same five steps every time. Shared first, then each platform wraps it.
 
-```mermaid
-flowchart LR
-    R["1 · Repository<br/>interface + Supabase impl"] --> S["2 · Store<br/>StateFlow + suspend actions"]
-    S --> T["3 · Tests<br/>fake repo in commonTest"]
-    T --> W["4 · Wire it<br/>KmpApplication + AppGraph"]
-    W --> A["5a · Android<br/>ViewModel + Compose screen"]
-    W --> I["5b · iOS<br/>ObservableObject + SwiftUI view"]
-
-    classDef shared fill:#7F52FF,stroke:#5b3bb8,color:#fff
-    class R,S,T,W shared
-```
+<p align="center">
+  <img src=".github/readme/add-feature.svg" alt="Adding a feature: repository, store, tests, wiring, then Android and iOS UI" width="100%">
+</p>
 
 <details>
 <summary><b>Step-by-step walkthrough</b> (click to expand)</summary>
@@ -459,18 +371,9 @@ flowchart LR
 
 ## ✅ Testing & CI
 
-```mermaid
-flowchart LR
-    P["push / PR"] --> AJ & IJ
-    subgraph AJ["🤖 Android job · ubuntu"]
-        direction TB
-        a1["sharedLogic:allTests"] --> a2["androidApp unit tests"] --> a3["lintDebug"] --> a4["assemble debug + release"]
-    end
-    subgraph IJ["🍎 iOS job · macOS 15"]
-        direction TB
-        i1["iosSimulatorArm64Test"] --> i2["xcodebuild iosApp<br/>(simulator, unsigned)"]
-    end
-```
+<p align="center">
+  <img src=".github/readme/ci.svg" alt="CI: an Android job and an iOS job run on every push and pull request" width="100%">
+</p>
 
 Run the same thing locally:
 

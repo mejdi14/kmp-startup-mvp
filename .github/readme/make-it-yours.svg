@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="320" viewBox="0 0 960 320" role="img" aria-label="Make it yours in six levels">
+<title>Make it yours in six levels</title>
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1A1840"/><stop offset="1" stop-color="#2C2063"/></linearGradient>
+<clipPath id="card"><rect width="960" height="320" rx="24"/></clipPath>
+<filter id="blur" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="45"/></filter>
+<filter id="glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+<filter id="shadow" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#000" flood-opacity=".35"/></filter>
+<linearGradient id="xp" gradientUnits="userSpaceOnUse" x1="95" y1="0" x2="865" y2="0"><stop offset="0" stop-color="#7F52FF"/><stop offset=".55" stop-color="#FF6B9D"/><stop offset="1" stop-color="#FFC93C"/></linearGradient><radialGradient id="gold" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#FFE58A"/><stop offset="1" stop-color="#FFB300"/></radialGradient>
+</defs>
+<style>
+text{font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji'}
+.t{fill:#fff;font-weight:700}
+.m{fill:#B9B4D8}
+.mono{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+.flow{stroke-dasharray:6 10;animation:dash 1.4s linear infinite}
+@keyframes dash{to{stroke-dashoffset:-32}}
+.bob{animation:bob 2.6s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-6px)}}
+.tw{animation:tw 3s ease-in-out infinite}
+@keyframes tw{50%{opacity:.1}}
+.pulse{animation:pulse 2.2s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+@keyframes pulse{50%{transform:scale(1.07)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+<g clip-path="url(#card)">
+<rect width="960" height="320" fill="url(#bg)"/>
+<circle cx="870" cy="20" r="140" fill="#7F52FF" opacity=".45" filter="url(#blur)"/>
+<circle cx="60" cy="320" r="120" fill="#FF6B9D" opacity=".22" filter="url(#blur)"/>
+<circle cx="480.0" cy="360" r="110" fill="#3ECF8E" opacity=".12" filter="url(#blur)"/>
+<path d="M0,-6 L1.4,-1.4 L6,0 L1.4,1.4 L0,6 L-1.4,1.4 L-6,0 L-1.4,-1.4Z" fill="#fff" opacity=".7" class="tw" style="animation-delay:0s" transform="translate(890 48) scale(1.1)"/><path d="M0,-6 L1.4,-1.4 L6,0 L1.4,1.4 L0,6 L-1.4,1.4 L-6,0 L-1.4,-1.4Z" fill="#FFC93C" opacity=".7" class="tw" style="animation-delay:1.1s" transform="translate(840 82) scale(0.7)"/><path d="M0,-6 L1.4,-1.4 L6,0 L1.4,1.4 L0,6 L-1.4,1.4 L-6,0 L-1.4,-1.4Z" fill="#fff" opacity=".7" class="tw" style="animation-delay:2.0s" transform="translate(926 104) scale(0.6)"/><path d="M0,-6 L1.4,-1.4 L6,0 L1.4,1.4 L0,6 L-1.4,1.4 L-6,0 L-1.4,-1.4Z" fill="#FF6B9D" opacity=".7" class="tw" style="animation-delay:0.6s" transform="translate(528.0 36) scale(0.6)"/>
+<text x="40" y="54" font-size="13" font-weight="800" letter-spacing="2.5" fill="#FFC93C">LEVEL UP</text>
+<text x="40" y="89" font-size="28" class="t">Make it yours in six levels</text>
+<line x1="95.0" y1="190" x2="864.8000000000001" y2="190" stroke="#2E2A66" stroke-width="16" stroke-linecap="round"/>
+<line x1="95.0" y1="190" x2="864.8000000000001" y2="190" stroke="url(#xp)" stroke-width="10" stroke-linecap="round"/>
+<line x1="95.0" y1="190" x2="864.8000000000001" y2="190" stroke="#fff" stroke-width="2" opacity=".45" class="flow"/>
+<g filter="url(#shadow)"><polygon points="95.0,148.0 131.4,169.0 131.4,211.0 95.0,232.0 58.6,211.0 58.6,169.0" fill="#0A84FF" stroke="#1A1840" stroke-width="5" stroke-linejoin="round"/></g>
+<text x="95.0" y="191" font-size="30" text-anchor="middle" dominant-baseline="central">🏷️</text>
+<g transform="translate(69 114)"><rect x="0" y="0" width="52" height="20" rx="10.0" fill="#1A1840" stroke="#0A84FF" stroke-width="1.5"/><text x="26" y="10.0" font-size="11" class="" fill="#0A84FF" font-weight="700" text-anchor="middle" dominant-baseline="central">LV 1</text></g>
+<text x="95.0" y="262" font-size="15" class="t" text-anchor="middle">Identity</text>
+<text x="95.0" y="281" font-size="12" class="m" text-anchor="middle">ids · URL scheme</text>
+<g filter="url(#shadow)"><polygon points="223.3,148.0 259.7,169.0 259.7,211.0 223.3,232.0 186.9,211.0 186.9,169.0" fill="#2BB57B" stroke="#1A1840" stroke-width="5" stroke-linejoin="round"/></g>
+<text x="223.3" y="191" font-size="30" text-anchor="middle" dominant-baseline="central">🗄️</text>
+<g transform="translate(198 114)"><rect x="0" y="0" width="52" height="20" rx="10.0" fill="#1A1840" stroke="#2BB57B" stroke-width="1.5"/><text x="26" y="10.0" font-size="11" class="" fill="#2BB57B" font-weight="700" text-anchor="middle" dominant-baseline="central">LV 2</text></g>
+<text x="223.3" y="262" font-size="15" class="t" text-anchor="middle">Backend</text>
+<text x="223.3" y="281" font-size="12" class="m" text-anchor="middle">Supabase project</text>
+<g filter="url(#shadow)"><polygon points="351.6,148.0 388.0,169.0 388.0,211.0 351.6,232.0 315.2,211.0 315.2,169.0" fill="#8E6CFF" stroke="#1A1840" stroke-width="5" stroke-linejoin="round"/></g>
+<text x="351.6" y="191" font-size="30" text-anchor="middle" dominant-baseline="central">🔐</text>
+<g transform="translate(326 114)"><rect x="0" y="0" width="52" height="20" rx="10.0" fill="#1A1840" stroke="#8E6CFF" stroke-width="1.5"/><text x="26" y="10.0" font-size="11" class="" fill="#8E6CFF" font-weight="700" text-anchor="middle" dominant-baseline="central">LV 3</text></g>
+<text x="351.6" y="262" font-size="15" class="t" text-anchor="middle">Sign-in</text>
+<text x="351.6" y="281" font-size="12" class="m" text-anchor="middle">OAuth · guests</text>
+<g filter="url(#shadow)"><polygon points="479.9,148.0 516.3,169.0 516.3,211.0 479.9,232.0 443.5,211.0 443.5,169.0" fill="#635BFF" stroke="#1A1840" stroke-width="5" stroke-linejoin="round"/></g>
+<text x="479.90000000000003" y="191" font-size="30" text-anchor="middle" dominant-baseline="central">💳</text>
+<g transform="translate(454 114)"><rect x="0" y="0" width="52" height="20" rx="10.0" fill="#1A1840" stroke="#635BFF" stroke-width="1.5"/><text x="26" y="10.0" font-size="11" class="" fill="#635BFF" font-weight="700" text-anchor="middle" dominant-baseline="central">LV 4</text></g>
+<text x="479.90000000000003" y="262" font-size="15" class="t" text-anchor="middle">Payments</text>
+<text x="479.90000000000003" y="281" font-size="12" class="m" text-anchor="middle">Stripe · webhook</text>
+<g filter="url(#shadow)"><polygon points="608.2,148.0 644.6,169.0 644.6,211.0 608.2,232.0 571.8,211.0 571.8,169.0" fill="#F05A1A" stroke="#1A1840" stroke-width="5" stroke-linejoin="round"/></g>
+<text x="608.2" y="191" font-size="30" text-anchor="middle" dominant-baseline="central">📈</text>
+<g transform="translate(582 114)"><rect x="0" y="0" width="52" height="20" rx="10.0" fill="#1A1840" stroke="#F05A1A" stroke-width="1.5"/><text x="26" y="10.0" font-size="11" class="" fill="#F05A1A" font-weight="700" text-anchor="middle" dominant-baseline="central">LV 5</text></g>
+<text x="608.2" y="262" font-size="15" class="t" text-anchor="middle">Analytics</text>
+<text x="608.2" y="281" font-size="12" class="m" text-anchor="middle">PostHog key</text>
+<g filter="url(#shadow)"><polygon points="736.5,148.0 772.9,169.0 772.9,211.0 736.5,232.0 700.1,211.0 700.1,169.0" fill="#FF6B9D" stroke="#1A1840" stroke-width="5" stroke-linejoin="round"/></g>
+<text x="736.5" y="191" font-size="30" text-anchor="middle" dominant-baseline="central">🖌️</text>
+<g transform="translate(711 114)"><rect x="0" y="0" width="52" height="20" rx="10.0" fill="#1A1840" stroke="#FF6B9D" stroke-width="1.5"/><text x="26" y="10.0" font-size="11" class="" fill="#FF6B9D" font-weight="700" text-anchor="middle" dominant-baseline="central">LV 6</text></g>
+<text x="736.5" y="262" font-size="15" class="t" text-anchor="middle">Product</text>
+<text x="736.5" y="281" font-size="12" class="m" text-anchor="middle">copy · theme · icons</text>
+<circle cx="864.8000000000001" cy="190" r="58" fill="#FFC93C" opacity=".25" filter="url(#glow)" class="pulse"/>
+<g filter="url(#shadow)"><circle cx="864.8000000000001" cy="190" r="44" fill="url(#gold)" stroke="#1A1840" stroke-width="5"/></g>
+<text x="864.8000000000001" y="191" font-size="32" text-anchor="middle" dominant-baseline="central" class="bob">🏆</text>
+<text x="864.8000000000001" y="262" font-size="15" class="t" text-anchor="middle" fill="#FFC93C">Ship it!</text>
+<text x="864.8000000000001" y="281" font-size="12" class="m" text-anchor="middle">v1.0 🎉</text>
+</g>
+</svg>
