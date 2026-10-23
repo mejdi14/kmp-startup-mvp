@@ -4,10 +4,16 @@ import { checkoutWithStripe, createStripePortal } from "../_shared/stripe.ts";
 import { posthog } from "../_shared/posthog.ts";
 
 clientRequestHandlerWithUser(async (req, user) => {
+  // Guests (anonymous users, D-009) have no email: the Stripe customer lookup by email would run
+  // with "" and a paid subscription would be lost when the guest signs out. The app refuses first;
+  // this is the server-side guarantee for any other client.
+  if (user.is_anonymous || !user.email) {
+    throw new Error("Save your account before opening payments");
+  }
   const { price: priceId, return_url } = await req.json();
   const stripeCustomerId = await createOrRetrieveCustomer({
     uuid: user.id,
-    email: user.email || "",
+    email: user.email,
   });
 
   // get price based on product

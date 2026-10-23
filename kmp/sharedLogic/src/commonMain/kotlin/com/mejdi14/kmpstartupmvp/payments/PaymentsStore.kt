@@ -43,16 +43,17 @@ class PaymentsStore(
 
     /**
      * Resolves the Stripe URL. Guarded on a real session: with none, supabase-kt would send the anon
-     * key as bearer and the function answers 400 "Authentication Error" (§2.3 pitfall).
+     * key as bearer and the function answers 400 "Authentication Error" (§2.3 pitfall). A guest
+     * session is refused too ([GuestCheckoutException]); `get_stripe_url` enforces the same rule.
      */
     // @Throws is what makes a Kotlin exception cross into Swift as an NSError. Without it the
     // ObjC export treats any non-CancellationException as fatal and aborts the process, so a
     // wrong password or an offline device would kill the iOS app instead of showing a message.
     @Throws(Throwable::class)
     suspend fun getStripeUrl(price: String?): String {
-        if ((authState.value as? AsyncValue.Data)?.value == null) {
-            throw StripeException("You must be signed in to open Stripe")
-        }
+        val session = (authState.value as? AsyncValue.Data)?.value
+            ?: throw StripeException("You must be signed in to open Stripe")
+        if (session.isAnonymous) throw GuestCheckoutException()
         return repository.getStripeUrl(price?.takeIf { it.isNotBlank() }, DeepLinks.STRIPE_RETURN_URL)
     }
 

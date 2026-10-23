@@ -1,5 +1,8 @@
 package com.mejdi14.kmpstartupmvp.nav
 
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -48,6 +51,7 @@ fun AppNavHost(
     }
     val gate by authViewModel.authGate.collectAsState()
     val pendingReset by authViewModel.pendingPasswordReset.collectAsState()
+    val linkError by authViewModel.linkError.collectAsState()
 
     // Fires on gate transitions only (and once on first composition, a no-op
     // when the gate already matches the start destination, e.g. after rotation).
@@ -130,5 +134,16 @@ fun AppNavHost(
                 },
             )
         }
+    }
+
+    // A deep link that failed (expired reset link, denied OAuth return). It arrives through
+    // MainActivity, outside any screen, so it is shown here, above whichever destination is current.
+    linkError?.let { message ->
+        AlertDialog(
+            onDismissRequest = authViewModel::dismissLinkError,
+            title = { Text("Link didn't work") },
+            text = { Text(message) },
+            confirmButton = { TextButton(onClick = authViewModel::dismissLinkError) { Text("Ok") } },
+        )
     }
 }

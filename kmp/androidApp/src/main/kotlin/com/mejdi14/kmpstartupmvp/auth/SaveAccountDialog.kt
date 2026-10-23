@@ -16,6 +16,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.mejdi14.kmpstartupmvp.ui.components.AppTextField
 import com.mejdi14.kmpstartupmvp.ui.components.ErrorText
+import com.mejdi14.kmpstartupmvp.ui.userMessage
 
 /**
  * "Save your account" (D-011): collects the credentials that turn the current guest session into a
@@ -89,8 +90,8 @@ fun SaveAccountDialog(
                         loading = false
                         result.fold(
                             onSuccess = onSaved,
-                            // A taken address carries its own explanation (it cannot be merged into).
-                            onFailure = { errorMessage = it.message ?: "Could not save your account" },
+                            // Shared copy (D-010); a taken address has its own sentence there (it cannot be merged into).
+                            onFailure = { errorMessage = it.userMessage() },
                         )
                     }
                 },

@@ -1,5 +1,7 @@
 package com.mejdi14.kmpstartupmvp.errors
 
+import com.mejdi14.kmpstartupmvp.auth.EmailAlreadyRegisteredException
+import com.mejdi14.kmpstartupmvp.payments.GuestCheckoutException
 import com.mejdi14.kmpstartupmvp.payments.StripeException
 import io.github.jan.supabase.auth.exception.AuthErrorCode
 import io.github.jan.supabase.auth.exception.AuthRestException
@@ -21,6 +23,7 @@ enum class ErrorKind {
     Timeout,
     InvalidCredentials,
     EmailAlreadyRegistered,
+    GuestEmailTaken,
     EmailNotConfirmed,
     InvalidEmail,
     WeakPassword,
@@ -37,6 +40,7 @@ enum class ErrorKind {
     NotAllowed,
     NotFound,
     Payment,
+    GuestCheckout,
     Server,
     Unknown,
 }
@@ -77,6 +81,9 @@ val ErrorKind.userMessage: String
         ErrorKind.Timeout -> "The server took too long to respond. Please try again."
         ErrorKind.InvalidCredentials -> "Incorrect email or password."
         ErrorKind.EmailAlreadyRegistered -> "That email is already registered. Try signing in instead."
+        ErrorKind.GuestEmailTaken ->
+            "That email already belongs to an account, and this guest session can't be moved into it. " +
+                "Sign in to that account instead (anything saved here stays behind), or use a different email."
         ErrorKind.EmailNotConfirmed -> "Confirm your email first — check your inbox for the link."
         ErrorKind.InvalidEmail -> "That email address doesn't look right."
         ErrorKind.WeakPassword -> "That password is too weak. Please choose a longer one."
@@ -93,6 +100,9 @@ val ErrorKind.userMessage: String
         ErrorKind.NotAllowed -> "You are not allowed to do that. Please sign in again and retry."
         ErrorKind.NotFound -> "We could not find that. It may have been removed."
         ErrorKind.Payment -> "We could not open the payment page. Please try again in a moment."
+        ErrorKind.GuestCheckout ->
+            "Save your account before subscribing: a guest can't keep a subscription after signing out. " +
+                "Open Account and choose Save your account."
         ErrorKind.Server -> "Something went wrong on our side. Please try again in a moment."
         ErrorKind.Unknown -> "Something went wrong. Please try again."
     }
@@ -109,6 +119,9 @@ internal fun classifyError(throwable: Throwable): ErrorKind = when (throwable) {
     is AuthWeakPasswordException -> ErrorKind.WeakPassword
     is AuthRestException -> authErrorKind(throwable.errorCode, throwable.statusCode)
     is RestException -> httpStatusKind(throwable.statusCode)
+    // D-011: a guest converting to an email that is taken; no merge exists, so it gets its own sentence.
+    is EmailAlreadyRegisteredException -> ErrorKind.GuestEmailTaken
+    is GuestCheckoutException -> ErrorKind.GuestCheckout
     is StripeException -> ErrorKind.Payment
     is AuthLinkException -> ErrorKind.ExpiredLink
     is NoSessionFoundException,

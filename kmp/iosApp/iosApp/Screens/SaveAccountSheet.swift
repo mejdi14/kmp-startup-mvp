@@ -63,7 +63,7 @@ struct SaveAccountSheet: View {
                 onSaved(outcome)
                 dismiss()
             } catch {
-                // A taken address carries its own explanation (it cannot be merged into).
+                // Shared copy (D-010); a taken address has its own sentence there (it cannot be merged into).
                 errorMessage = error.userMessage
             }
             loading = false

@@ -1,6 +1,8 @@
 package com.mejdi14.kmpstartupmvp.auth
 
 import com.mejdi14.kmpstartupmvp.errors.AuthLinkException
+import com.mejdi14.kmpstartupmvp.errors.toUserFacingError
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -43,6 +45,15 @@ class AuthStore(
 
     /** True after a recovery link signed the user in, until the new-password dialog is dismissed. */
     val pendingPasswordReset: StateFlow<Boolean> = _pendingPasswordReset.asStateFlow()
+
+    private val _linkError = MutableStateFlow<String?>(null)
+
+    /**
+     * The sentence to show for the last deep link that failed (D-010) — an expired reset link, a
+     * denied OAuth return — until [dismissLinkError]. Deep links arrive outside any screen, so the
+     * failure is published here rather than left in a log nobody reads.
+     */
+    val linkError: StateFlow<String?> = _linkError.asStateFlow()
 
     init {
         scope.launch {
@@ -90,21 +101,32 @@ class AuthStore(
      */
     @Throws(Throwable::class)
     suspend fun handleDeepLink(url: String) {
-        when (val link = DeepLinks.parse(url)) {
-            is DeepLink.PasswordReset -> {
-                repository.exchangeCodeForSession(link.code)
-                _pendingPasswordReset.value = true
+        try {
+            when (val link = DeepLinks.parse(url)) {
+                is DeepLink.PasswordReset -> {
+                    repository.exchangeCodeForSession(link.code)
+                    _pendingPasswordReset.value = true
+                }
+                is DeepLink.OAuthCallback -> repository.exchangeCodeForSession(link.code)
+                // Payments links are routed by the PaymentsStore, not auth.
+                DeepLink.StripeReturn, is DeepLink.OpenPayments -> Unit
+                is DeepLink.LinkError -> throw AuthLinkException(link.message)
+                null -> Unit
             }
-            is DeepLink.OAuthCallback -> repository.exchangeCodeForSession(link.code)
-            // Payments links are routed by the PaymentsStore, not auth.
-            DeepLink.StripeReturn, is DeepLink.OpenPayments -> Unit
-            is DeepLink.LinkError -> throw AuthLinkException(link.message)
-            null -> Unit
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            _linkError.value = e.toUserFacingError().message
+            throw e
         }
     }
 
     fun dismissPasswordReset() {
         _pendingPasswordReset.value = false
+    }
+
+    fun dismissLinkError() {
+        _linkError.value = null
     }
 
     /** Native Google/Apple sign-in; [nonce] is the raw nonce whose hash was sent to the provider. */

@@ -24,6 +24,7 @@ class AuthViewModel(private val store: AuthStore) : ViewModel() {
     val authGate = store.authGate
     val pendingPasswordReset = store.pendingPasswordReset
     val isGuest = store.isGuest
+    val linkError = store.linkError
 
     fun signInWithPassword(email: String, password: String, onResult: (Result<Unit>) -> Unit = {}) =
         run(onResult) { store.signInWithPassword(email, password) }
@@ -66,6 +67,8 @@ class AuthViewModel(private val store: AuthStore) : ViewModel() {
         run(onResult) { store.updatePassword(password) }
 
     fun dismissPasswordReset() = store.dismissPasswordReset()
+
+    fun dismissLinkError() = store.dismissLinkError()
 
     /** Feeds an incoming D-003 deep link to the store; failures (e.g. expired link) go to [onResult]. */
     fun handleDeepLink(url: String, onResult: (Result<Unit>) -> Unit = {}) =

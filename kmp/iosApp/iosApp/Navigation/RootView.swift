@@ -19,6 +19,14 @@ struct RootView: View {
         }
         .tint(AppColors.primary)
         .preferredColorScheme(.light)
+        // A deep link that failed (expired reset link, denied OAuth return). It arrives through
+        // `onOpenURL`, outside any screen, so it is shown here, above whichever stack is current.
+        .alert(
+            "Link didn't work",
+            isPresented: Binding(get: { auth.linkError != nil }, set: { if !$0 { auth.dismissLinkError() } }),
+            actions: { Button("OK", role: .cancel) {} },
+            message: { Text(auth.linkError ?? "") }
+        )
     }
 }
 

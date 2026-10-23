@@ -61,10 +61,15 @@ The app uses the custom scheme `com.devtodollars.app://login-callback` for OAuth
 email confirmation, password reset and Stripe returns (PORTING.md D-003).
 Supabase rejects redirects that are not allow-listed, so add it in **both**:
 
-- Local: `supabase/config.toml` -> `additional_redirect_urls`
-  (add `"com.devtodollars.app://login-callback"` and, for password reset,
-  `"com.devtodollars.app://login-callback/**"`), then `supabase stop && supabase start`.
-- Hosted: Dashboard -> Authentication -> URL Configuration -> Redirect URLs.
+- Local: already done — `supabase/config.toml` -> `additional_redirect_urls` lists
+  `"com.devtodollars.app://login-callback"` and, for password reset,
+  `"com.devtodollars.app://login-callback/**"`. If you rename the scheme, change
+  them there too, then `supabase stop && supabase start`.
+- Hosted: Dashboard -> Authentication -> URL Configuration -> Redirect URLs
+  (add the same two URLs).
+
+If a link still fails (expired, already used, or rejected), both apps show a
+"Link didn't work" message with the reason.
 
 Email confirmation is on, so sign-up shows "check your email" instead of
 logging in. Locally, read the mail in Inbucket at http://localhost:54324.
@@ -98,6 +103,11 @@ disabled"*:
   `supabase/config.toml`.
 - Hosted: Dashboard -> Authentication -> Sign In / Providers -> **Anonymous
   sign-ins**.
+
+Guests cannot open Stripe Checkout or the billing portal: they have no email
+for the Stripe customer, and a paid subscription would be lost on sign-out. The
+app asks them to save their account first, and `get_stripe_url` refuses
+anonymous users as well.
 
 Two things to know before you keep it: every guest is a row in `auth.users`,
 so abandoned guest accounts accumulate and deserve a periodic cleanup; and a

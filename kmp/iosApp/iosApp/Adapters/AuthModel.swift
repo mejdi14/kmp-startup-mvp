@@ -18,6 +18,8 @@ final class AuthModel: ObservableObject {
     @Published private(set) var pendingPasswordReset = false
     /// True while the session is anonymous (D-009/D-011). Not a gate state: it decides what a screen offers.
     @Published private(set) var isGuest = false
+    /// The sentence for the last deep link that failed (D-010), until `dismissLinkError()`.
+    @Published private(set) var linkError: String?
 
     private let store: AuthStore
     private var watchers: [Watcher] = []
@@ -34,6 +36,9 @@ final class AuthModel: ObservableObject {
         })
         watchers.append(observe(store.isGuest) { [weak self] (guest: NSNumber) in
             self?.isGuest = guest.boolValue
+        })
+        watchers.append(observeOptional(store.linkError) { [weak self] (message: String?) in
+            self?.linkError = message
         })
     }
 
@@ -89,6 +94,8 @@ final class AuthModel: ObservableObject {
     func signOut() async throws { try await store.signOut() }
 
     func dismissPasswordReset() { store.dismissPasswordReset() }
+
+    func dismissLinkError() { store.dismissLinkError() }
 
     func handleDeepLink(_ url: String) async throws { try await store.handleDeepLink(url: url) }
 }

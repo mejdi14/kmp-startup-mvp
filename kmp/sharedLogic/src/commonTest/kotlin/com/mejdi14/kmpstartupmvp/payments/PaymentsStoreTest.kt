@@ -80,6 +80,15 @@ class PaymentsStoreTest {
     }
 
     @Test
+    fun refusesAGuestAndNeverCallsFunction() = runTest {
+        // D-009/D-011: a guest has no email for the Stripe customer and would lose a paid subscription on sign-out.
+        auth.value = AsyncValue.Data(AuthSession("u", null, "t", isAnonymous = true))
+        assertFailsWith<GuestCheckoutException> { store().getStripeUrl("price_1") }
+        assertFailsWith<GuestCheckoutException> { store().getStripeUrl(null) }
+        assertTrue(payments.calls.isEmpty())
+    }
+
+    @Test
     fun surfacesServerMessage() = runTest {
         payments.failure = StripeException("Could not create billing portal")
         val e = assertFailsWith<StripeException> { store().getStripeUrl(null) }

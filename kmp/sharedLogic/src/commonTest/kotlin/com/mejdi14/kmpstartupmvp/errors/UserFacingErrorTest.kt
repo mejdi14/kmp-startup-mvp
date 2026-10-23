@@ -1,5 +1,7 @@
 package com.mejdi14.kmpstartupmvp.errors
 
+import com.mejdi14.kmpstartupmvp.auth.EmailAlreadyRegisteredException
+import com.mejdi14.kmpstartupmvp.payments.GuestCheckoutException
 import com.mejdi14.kmpstartupmvp.payments.StripeException
 import io.github.jan.supabase.auth.exception.AuthErrorCode
 import io.github.jan.supabase.auth.exception.InvalidJwtException
@@ -87,6 +89,22 @@ class UserFacingErrorTest {
         assertEquals(ErrorKind.Payment, error.kind)
         assertEquals("We could not open the payment page. Please try again in a moment.", error.message)
         assertTrue("Unable to access customer record." in error.technicalDetail)
+    }
+
+    @Test
+    fun takenEmailOnGuestConversionGetsItsOwnSentence() {
+        // D-011: not the generic "Something went wrong", and not the sign-up "already registered" copy.
+        val error = EmailAlreadyRegisteredException("taken@b.co").toUserFacingError()
+        assertEquals(ErrorKind.GuestEmailTaken, error.kind)
+        assertTrue("can't be moved into it" in error.message)
+        assertTrue("taken@b.co" in error.technicalDetail)
+    }
+
+    @Test
+    fun guestCheckoutAsksToSaveTheAccount() {
+        val error = GuestCheckoutException().toUserFacingError()
+        assertEquals(ErrorKind.GuestCheckout, error.kind)
+        assertTrue("Save your account" in error.message)
     }
 
     // ---- GoTrue error codes ---------------------------------------------------------------

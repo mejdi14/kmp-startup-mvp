@@ -289,6 +289,23 @@ class AuthStoreTest {
     }
 
     @Test
+    fun failedLinkIsPublishedForTheScreenUntilDismissed() = runTest {
+        val repo = FakeAuthRepository()
+        val store = AuthStore(repo, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
+        assertEquals(null, store.linkError.value)
+        assertFailsWith<AuthLinkException> {
+            store.handleDeepLink("com.devtodollars.app://login-callback/reset#error=access_denied")
+        }
+        // The shared sentence, not GoTrue's raw `error` value (D-010).
+        assertEquals("That link has expired or was already used. Please request a new one.", store.linkError.value)
+        store.dismissLinkError()
+        assertEquals(null, store.linkError.value)
+        // A link that works raises nothing.
+        store.handleDeepLink("com.devtodollars.app://login-callback/reset?code=c1")
+        assertEquals(null, store.linkError.value)
+    }
+
+    @Test
     fun googleIdTokenSignInDrivesGate() = runTest {
         val repo = FakeAuthRepository()
         val store = AuthStore(repo, CoroutineScope(UnconfinedTestDispatcher(testScheduler)))
