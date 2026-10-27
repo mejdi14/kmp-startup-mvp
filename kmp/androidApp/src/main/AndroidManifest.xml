@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <application
         android:name=".KmpApplication"
         android:allowBackup="true"
@@ -8,6 +11,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
+        android:usesCleartextTraffic="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <!-- PostHog native config (PORTING.md §1.5); the project key is a public client key, as in Flutter. -->
         <meta-data android:name="com.posthog.posthog.API_KEY" android:value="phc_brFjanMrA2KXPYyvFjLdwJC9VJvl4VG7mG9yKqvgCCY" />
