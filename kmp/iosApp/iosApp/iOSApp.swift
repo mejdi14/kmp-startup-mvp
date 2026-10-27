@@ -2,14 +2,11 @@ import SwiftUI
 
 @main
 struct iOSApp: App {
-    @StateObject private var env = AppEnvironment()
-
+    // Sign-in, payments and analytics from the boilerplate (`AppEnvironment`, `RootView`) are skipped:
+    // the app opens straight into Shadow Studio, and nothing is sent to Supabase or PostHog.
     var body: some Scene {
         WindowGroup {
-            RootView(auth: env.auth)
-                .environmentObject(env)
-                // D-003 custom-scheme deep links (reset, OAuth return, Stripe return, payments).
-                .onOpenURL { env.handle(url: $0) }
+            ShadowRoot()
         }
     }
 }

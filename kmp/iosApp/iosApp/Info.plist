@@ -2,6 +2,16 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleDisplayName</key>
+	<string>Shadow Studio</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Shadow Studio records your takes so your Mac can compare them with the speaker.</string>
+	<!-- The Shadow Studio engine runs on the Mac at http://127.0.0.1:8765. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<!-- D-003 custom scheme (task 9); keep in sync with DeepLinks. Task 13 wires onOpenURL. -->
